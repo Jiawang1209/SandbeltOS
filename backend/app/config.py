@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
 
     # GEE
+    gee_project: str = "ee-yueliu19921209"
     gee_service_account: str = ""
     gee_key_file: str = "secrets/gee-key.json"
 

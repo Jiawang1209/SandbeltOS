@@ -72,3 +72,44 @@ async def get_timeseries(
         "indicator": indicator,
         "data": data,
     }
+
+
+@router.get("/weather")
+async def get_weather(
+    region_id: int = Query(1, description="Region ID"),
+    start_date: str = Query("2020-01-01", description="Start date YYYY-MM-DD"),
+    end_date: str = Query("2024-12-31", description="End date YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get weather timeseries for a region."""
+    start_dt = datetime.fromisoformat(start_date)
+    end_dt = datetime.fromisoformat(end_date)
+
+    result = await db.execute(
+        text("""
+            SELECT time, precipitation, temperature, wind_speed,
+                   wind_direction, evapotranspiration, soil_moisture
+            FROM weather_data
+            WHERE region_id = :region_id
+              AND time >= :start_date
+              AND time <= :end_date
+            ORDER BY time
+        """),
+        {"region_id": region_id, "start_date": start_dt, "end_date": end_dt},
+    )
+    rows = result.fetchall()
+
+    data = [
+        {
+            "time": row[0].isoformat(),
+            "precipitation": row[1],
+            "temperature": row[2],
+            "wind_speed": row[3],
+            "wind_direction": row[4],
+            "evapotranspiration": row[5],
+            "soil_moisture": row[6],
+        }
+        for row in rows
+    ]
+
+    return {"region_id": region_id, "data": data}

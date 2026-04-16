@@ -18,26 +18,25 @@ export default function Home() {
 
         <BackendStatus />
 
+        <a
+          href="/dashboard"
+          className="w-full rounded-lg bg-green-600 px-6 py-3 text-center font-medium text-white transition hover:bg-green-700"
+        >
+          进入生态监测仪表盘 →
+        </a>
+
         <div className="grid w-full grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="font-medium text-zinc-900 dark:text-zinc-100">
-              GIS Map
-            </div>
-            <div className="mt-1 text-zinc-500 dark:text-zinc-400">
-              Phase 2
-            </div>
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="font-medium text-green-800">GIS 地图</div>
+            <div className="mt-1 text-green-600">Phase 2 ✓</div>
+          </div>
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="font-medium text-green-800">生态仪表盘</div>
+            <div className="mt-1 text-green-600">Phase 2 ✓</div>
           </div>
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
             <div className="font-medium text-zinc-900 dark:text-zinc-100">
-              Eco Dashboard
-            </div>
-            <div className="mt-1 text-zinc-500 dark:text-zinc-400">
-              Phase 3
-            </div>
-          </div>
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="font-medium text-zinc-900 dark:text-zinc-100">
-              RAG Chat
+              RAG 问答
             </div>
             <div className="mt-1 text-zinc-500 dark:text-zinc-400">
               Phase 4
@@ -45,7 +44,7 @@ export default function Home() {
           </div>
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
             <div className="font-medium text-zinc-900 dark:text-zinc-100">
-              Prediction
+              预测分析
             </div>
             <div className="mt-1 text-zinc-500 dark:text-zinc-400">
               Phase 5

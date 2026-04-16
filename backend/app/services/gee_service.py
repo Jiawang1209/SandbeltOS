@@ -9,18 +9,21 @@ def _get_ee():
     return ee
 
 
-def init_gee(service_account: str = "", key_file: str = "") -> None:
+def init_gee(service_account: str = "", key_file: str = "", project: str = "") -> None:
     """Initialize GEE. Uses service account if provided, otherwise default credentials."""
     ee = _get_ee()
+    if not project:
+        from app.config import get_settings
+        project = get_settings().gee_project
     try:
         if service_account and key_file:
             credentials = ee.ServiceAccountCredentials(service_account, key_file)
-            ee.Initialize(credentials)
+            ee.Initialize(credentials, project=project)
         else:
-            ee.Initialize()
+            ee.Initialize(project=project)
     except ee.EEException:
         ee.Authenticate()
-        ee.Initialize()
+        ee.Initialize(project=project)
 
 
 def fetch_modis_ndvi(
