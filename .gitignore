@@ -1,0 +1,62 @@
+# Tool state
+.omc/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables
+.env
+secrets/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+.next/
+out/
+
+# Data files (large)
+data/boundaries/*.shp
+data/boundaries/*.tif
+data/boundaries/*.nc
+data/sample/*.csv
+data/rag_docs/*.pdf
+*.nc
+*.tif
+*.hdf
+
+# Database
+*.db
+chroma_db/
+
+# ML models
+backend/ml/models/*.pt
+backend/ml/models/*.pkl
+
+# Logs
+*.log
+logfile
+
+# Temporary
+/tmp/
