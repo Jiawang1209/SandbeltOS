@@ -31,14 +31,19 @@ async def fetch_snapshot(region: str) -> dict[str, Any]:
     if region_id is None:
         return {"region": region, "error": f"unknown region: {region}"}
 
-    async with async_session() as sess:
-        ndvi_fvc, risk, weather, landcover, alerts = await asyncio.gather(
-            ecological_svc.get_ndvi_fvc_latest(region_id, sess),
-            ecological_svc.get_risk_latest(region_id, sess),
-            ecological_svc.get_weather_latest(region_id, sess),
-            ecological_svc.get_landcover_latest(region_id, sess),
-            ecological_svc.get_alerts_latest(region_id, sess, limit=1),
-        )
+    # Each concurrent query needs its own AsyncSession — a single session
+    # cannot serve parallel `asyncio.gather` calls (IllegalStateChangeError).
+    async def _run(fn, *args, **kwargs):
+        async with async_session() as sess:
+            return await fn(region_id, sess, *args, **kwargs)
+
+    ndvi_fvc, risk, weather, landcover, alerts = await asyncio.gather(
+        _run(ecological_svc.get_ndvi_fvc_latest),
+        _run(ecological_svc.get_risk_latest),
+        _run(ecological_svc.get_weather_latest),
+        _run(ecological_svc.get_landcover_latest),
+        _run(ecological_svc.get_alerts_latest, limit=1),
+    )
 
     ndvi_fvc = ndvi_fvc or {}
     risk = risk or {}
