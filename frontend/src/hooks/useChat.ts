@@ -6,34 +6,60 @@ import { parseSSE } from "@/lib/sse";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export function useChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+type ExternalState = {
+  messages: ChatMessage[];
+  updateMessages: (updater: (prev: ChatMessage[]) => ChatMessage[]) => void;
+};
+
+// Accept optional externally-controlled state so the /chat page can store
+// messages inside a conversation (localStorage-backed). When omitted, the
+// hook manages its own in-memory state — which is what ChatWidget does.
+export function useChat(external?: ExternalState) {
+  const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const updateLast = useCallback((patch: Partial<ChatMessage>) => {
-    setMessages((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      return [
-        ...prev.slice(0, -1),
-        { ...last, ...patch, content: patch.content ?? last.content },
-      ];
-    });
-  }, []);
+  const messages = external?.messages ?? internalMessages;
+  const updateMessages = useCallback(
+    (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+      if (external) external.updateMessages(updater);
+      else setInternalMessages(updater);
+    },
+    [external],
+  );
 
-  const appendToken = useCallback((delta: string) => {
-    setMessages((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      return [...prev.slice(0, -1), { ...last, content: last.content + delta }];
-    });
-  }, []);
+  const updateLast = useCallback(
+    (patch: Partial<ChatMessage>) => {
+      updateMessages((prev) => {
+        if (prev.length === 0) return prev;
+        const last = prev[prev.length - 1];
+        return [
+          ...prev.slice(0, -1),
+          { ...last, ...patch, content: patch.content ?? last.content },
+        ];
+      });
+    },
+    [updateMessages],
+  );
+
+  const appendToken = useCallback(
+    (delta: string) => {
+      updateMessages((prev) => {
+        if (prev.length === 0) return prev;
+        const last = prev[prev.length - 1];
+        return [
+          ...prev.slice(0, -1),
+          { ...last, content: last.content + delta },
+        ];
+      });
+    },
+    [updateMessages],
+  );
 
   const ask = useCallback(
     async (question: string, regionHint?: string | null) => {
       const now = Date.now().toString();
-      setMessages((prev) => [
+      updateMessages((prev) => [
         ...prev,
         { id: `u-${now}`, role: "user", content: question },
         {
@@ -71,22 +97,23 @@ export function useChat() {
             appendToken(JSON.parse(evt.data) as string);
           } else if (evt.event === "error") {
             const { message } = JSON.parse(evt.data) as { message: string };
-            updateLast({ error: message });
+            updateLast({ error: message, streaming: false });
           } else if (evt.event === "done") {
             updateLast({ streaming: false });
           }
         }
       } catch (err: unknown) {
-        updateLast({
-          streaming: false,
-          error: (err as Error).message,
-        });
+        const message =
+          err instanceof DOMException && err.name === "AbortError"
+            ? "已停止"
+            : (err as Error).message;
+        updateLast({ streaming: false, error: message });
       } finally {
         setStreaming(false);
         abortRef.current = null;
       }
     },
-    [updateLast, appendToken],
+    [updateMessages, updateLast, appendToken],
   );
 
   const stop = useCallback(() => {
@@ -94,9 +121,9 @@ export function useChat() {
   }, []);
 
   const reset = useCallback(() => {
-    setMessages([]);
+    updateMessages(() => []);
     setStreaming(false);
-  }, []);
+  }, [updateMessages]);
 
   return { messages, streaming, ask, stop, reset };
 }

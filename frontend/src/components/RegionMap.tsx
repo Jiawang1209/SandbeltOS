@@ -230,16 +230,19 @@ export default function RegionMap({
     }
   }, [regions, ndviSummary, riskSummary, layerMode, ndviYearly]);
 
-  // Pixel-grid hotspot overlay. Each cell's NDVI is baked into the feature
-  // so we can color it with the same sand→green ramp used for the polygon
-  // fill, at a spatial resolution useful for spotting local regression.
+  // Pixel-grid hotspot overlay + sandy-fill opacity. Unified into one effect
+  // because fill-opacity has to respond to both `layerMode` (dim under the
+  // hotspot grid) and `selectedRegionId` (highlight the active sandy land),
+  // and splitting them caused a race where switching out of hotspot mode
+  // left the hotspot-fill layer visually "stuck" and overwrote the selection
+  // highlight.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const applyGrid = () => {
-      const shouldShow = layerMode === "hotspot" && hotspotGrid != null;
-      const gridFc = shouldShow
+    const apply = () => {
+      const hotspotActive = layerMode === "hotspot" && hotspotGrid != null;
+      const gridFc = hotspotActive
         ? {
             type: "FeatureCollection" as const,
             features: hotspotGrid!.features.map((f) => ({
@@ -281,40 +284,58 @@ export default function RegionMap({
         });
       }
 
-      // Dim the underlying sandy-land fill while the hotspot layer is active
-      // so individual cells read cleanly.
+      // Belt-and-suspenders: hide the layers outright when not in hotspot
+      // mode. setData with empty features should be enough, but toggling
+      // visibility guarantees the pixel grid can't visually linger on top
+      // of the polygon fill after a mode switch.
+      if (map.getLayer("hotspot-fill")) {
+        map.setLayoutProperty(
+          "hotspot-fill",
+          "visibility",
+          hotspotActive ? "visible" : "none"
+        );
+        map.setLayoutProperty(
+          "hotspot-border",
+          "visibility",
+          hotspotActive ? "visible" : "none"
+        );
+      }
+
+      // Single source of truth for sandy-fill opacity so the two concerns
+      // (dim under hotspot vs. highlight selected region) don't race.
       if (map.getLayer("sandy-fill")) {
         map.setPaintProperty(
           "sandy-fill",
           "fill-opacity",
-          shouldShow ? 0.1 : 0.45
+          hotspotActive
+            ? 0.1
+            : [
+                "case",
+                ["==", ["get", "id"], selectedRegionId ?? -1],
+                0.55,
+                0.35,
+              ]
         );
       }
     };
 
     if (map.isStyleLoaded()) {
-      applyGrid();
+      apply();
     } else {
-      map.on("load", applyGrid);
+      map.on("load", apply);
     }
-  }, [hotspotGrid, layerMode]);
+  }, [hotspotGrid, layerMode, selectedRegionId]);
 
-  // Highlight selected region
+  // Border width still responds independently to selection so the selected
+  // outline stays crisp regardless of layer mode.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getLayer("sandy-border")) return;
-
     map.setPaintProperty("sandy-border", "line-width", [
       "case",
       ["==", ["get", "id"], selectedRegionId ?? -1],
       2,
       1,
-    ]);
-    map.setPaintProperty("sandy-fill", "fill-opacity", [
-      "case",
-      ["==", ["get", "id"], selectedRegionId ?? -1],
-      0.55,
-      0.35,
     ]);
   }, [selectedRegionId]);
 

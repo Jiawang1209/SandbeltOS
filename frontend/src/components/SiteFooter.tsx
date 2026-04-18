@@ -8,7 +8,7 @@ export default function SiteFooter() {
         color: "rgba(244,241,232,0.72)",
       }}
     >
-      <div className="mx-auto grid max-w-[1600px] gap-8 px-6 py-8 md:grid-cols-4">
+      <div className="mx-auto grid max-w-[1600px] gap-8 px-6 py-8 md:grid-cols-3">
         <div className="md:col-span-2">
           <div className="flex items-center gap-3">
             <div
@@ -48,20 +48,6 @@ export default function SiteFooter() {
           </ul>
         </div>
 
-        <div>
-          <div className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">
-            研制单位
-          </div>
-          <ul className="mt-3 space-y-1.5">
-            <li className="font-serif text-white/90">
-              中国科学院沈阳应用生态研究所
-            </li>
-            <li>沙地生态监测研究中心</li>
-            <li className="pt-2 text-white/50">
-              Shenyang Institute of Applied Ecology, CAS
-            </li>
-          </ul>
-        </div>
       </div>
 
       <div className="border-t border-white/5">

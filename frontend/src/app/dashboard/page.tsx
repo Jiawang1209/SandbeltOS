@@ -116,6 +116,14 @@ export default function DashboardPage() {
     }
   }, [availableYears, selectedYear]);
 
+  // Reset the time slider to the earliest year whenever the selected region
+  // changes, so switching sandy lands or returning to the overview always
+  // restarts the restoration story from the beginning.
+  useEffect(() => {
+    if (availableYears.length === 0) return;
+    setSelectedYear(availableYears[0]);
+  }, [selectedId, availableYears]);
+
   // Discover which years have cached hotspot grids for the selected region,
   // so the time slider can snap to the nearest available year in hotspot mode.
   useEffect(() => {

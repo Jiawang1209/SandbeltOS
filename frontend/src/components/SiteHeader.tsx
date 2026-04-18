@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 interface RegionPillOption {
   id: number | null;
   label: string;
@@ -14,52 +12,8 @@ interface SiteHeaderProps {
 }
 
 export default function SiteHeader({ regions, selectedId, onSelect }: SiteHeaderProps) {
-  const [today, setToday] = useState("");
-
-  useEffect(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    setToday(`${y}.${m}.${d}`);
-  }, []);
-
   return (
     <header className="relative z-10">
-      {/* Top institutional bar */}
-      <div
-        className="border-b border-white/5 text-[11px]"
-        style={{
-          background:
-            "linear-gradient(180deg, var(--forest-950) 0%, var(--forest-900) 100%)",
-          color: "rgba(244,241,232,0.78)",
-        }}
-      >
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-1.5">
-          <div className="flex items-center gap-3">
-            <span className="font-serif tracking-[0.04em]">
-              中国科学院 · 沈阳应用生态研究所
-            </span>
-            <span className="text-white/25">|</span>
-            <span className="tracking-wide">沙地生态监测研究中心</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="/" className="tracking-wide hover:text-white transition">首页</a>
-            <a href="/dashboard" className="tracking-wide text-white">数据监测</a>
-            <a
-              href="/chat"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="tracking-wide hover:text-white transition"
-            >
-              智能助手
-            </a>
-            <span className="text-white/25">|</span>
-            <span className="num tracking-wider text-white/60">{today}</span>
-          </div>
-        </div>
-      </div>
-
       {/* Accent stripe */}
       <div className="header-accent" />
 
