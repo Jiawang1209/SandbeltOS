@@ -215,6 +215,108 @@ async def get_landcover(region_id: int, db: AsyncSession) -> dict[str, Any]:
     return {"region": region, "series": payload.get("series", [])}
 
 
+async def get_ndvi_fvc_latest(region_id: int, db: AsyncSession) -> dict[str, Any] | None:
+    """Most recent NDVI/FVC sample for a region. None if nothing ingested."""
+    result = await db.execute(
+        text(
+            """
+            SELECT time, indicator, value
+            FROM eco_indicators
+            WHERE region_id = :rid AND indicator IN ('ndvi', 'fvc')
+            ORDER BY time DESC LIMIT 2
+            """
+        ),
+        {"rid": region_id},
+    )
+    rows = result.fetchall()
+    if not rows:
+        return None
+    latest: dict[str, Any] = {"time": rows[0][0].isoformat()}
+    for row in rows:
+        latest[row[1]] = row[2]
+    return latest
+
+
+async def get_risk_latest(region_id: int, db: AsyncSession) -> dict[str, Any] | None:
+    result = await db.execute(
+        text(
+            """
+            SELECT time, risk_level, risk_score
+            FROM desertification_risk
+            WHERE region_id = :rid
+            ORDER BY time DESC LIMIT 1
+            """
+        ),
+        {"rid": region_id},
+    )
+    row = result.fetchone()
+    if row is None:
+        return None
+    return {"time": row[0].isoformat(), "level": row[1], "score": row[2]}
+
+
+async def get_weather_latest(region_id: int, db: AsyncSession) -> dict[str, Any] | None:
+    result = await db.execute(
+        text(
+            """
+            SELECT time, precipitation, temperature, wind_speed, soil_moisture
+            FROM weather_data
+            WHERE region_id = :rid
+            ORDER BY time DESC LIMIT 1
+            """
+        ),
+        {"rid": region_id},
+    )
+    row = result.fetchone()
+    if row is None:
+        return None
+    return {
+        "time": row[0].isoformat(),
+        "precipitation": row[1],
+        "temperature": row[2],
+        "wind_speed": row[3],
+        "soil_moisture": row[4],
+    }
+
+
+async def get_landcover_latest(region_id: int, db: AsyncSession) -> dict[str, Any]:
+    """Most recent year's landcover composition (reads cached JSON)."""
+    path = _LANDCOVER_DIR / f"{region_id}.json"
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text())
+    series = payload.get("series") or []
+    if not series:
+        return {}
+    return series[-1]
+
+
+async def get_alerts_latest(
+    region_id: int, db: AsyncSession, limit: int = 1
+) -> list[dict[str, Any]]:
+    result = await db.execute(
+        text(
+            """
+            SELECT id, created_at, alert_type, severity, message
+            FROM alerts
+            WHERE region_id = :rid
+            ORDER BY created_at DESC LIMIT :limit
+            """
+        ),
+        {"rid": region_id, "limit": limit},
+    )
+    return [
+        {
+            "id": row[0],
+            "created_at": row[1].isoformat(),
+            "alert_type": row[2],
+            "severity": row[3],
+            "message": row[4],
+        }
+        for row in result.fetchall()
+    ]
+
+
 async def list_alerts(
     region_id: int | None,
     severity: str | None,
