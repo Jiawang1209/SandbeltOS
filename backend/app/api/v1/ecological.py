@@ -1,10 +1,9 @@
-from datetime import datetime
-
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import text
+"""Thin HTTP wrappers; query logic lives in app.services.ecological."""
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.services import ecological as svc
 
 router = APIRouter()
 
@@ -18,60 +17,7 @@ async def get_timeseries(
     db: AsyncSession = Depends(get_db),
 ):
     """Get ecological indicator timeseries for a region."""
-    # Fetch region info
-    region_result = await db.execute(
-        text("SELECT id, name, level, area_km2 FROM regions WHERE id = :id"),
-        {"id": region_id},
-    )
-    region_row = region_result.fetchone()
-    if region_row is None:
-        return {"error": f"Region {region_id} not found"}
-
-    region = {
-        "id": region_row[0],
-        "name": region_row[1],
-        "level": region_row[2],
-        "area_km2": region_row[3],
-    }
-
-    # Parse date strings to datetime objects (asyncpg requires native Python types)
-    start_dt = datetime.fromisoformat(start_date)
-    end_dt = datetime.fromisoformat(end_date)
-
-    # Fetch timeseries data
-    result = await db.execute(
-        text("""
-            SELECT time, value, source
-            FROM eco_indicators
-            WHERE region_id = :region_id
-              AND indicator = :indicator
-              AND time >= :start_date
-              AND time <= :end_date
-            ORDER BY time
-        """),
-        {
-            "region_id": region_id,
-            "indicator": indicator,
-            "start_date": start_dt,
-            "end_date": end_dt,
-        },
-    )
-    rows = result.fetchall()
-
-    data = [
-        {
-            "time": row[0].isoformat(),
-            "value": row[1],
-            "source": row[2],
-        }
-        for row in rows
-    ]
-
-    return {
-        "region": region,
-        "indicator": indicator,
-        "data": data,
-    }
+    return await svc.get_timeseries(region_id, indicator, start_date, end_date, db)
 
 
 @router.get("/weather")
@@ -82,34 +28,47 @@ async def get_weather(
     db: AsyncSession = Depends(get_db),
 ):
     """Get weather timeseries for a region."""
-    start_dt = datetime.fromisoformat(start_date)
-    end_dt = datetime.fromisoformat(end_date)
+    return await svc.get_weather(region_id, start_date, end_date, db)
 
-    result = await db.execute(
-        text("""
-            SELECT time, precipitation, temperature, wind_speed,
-                   wind_direction, evapotranspiration, soil_moisture
-            FROM weather_data
-            WHERE region_id = :region_id
-              AND time >= :start_date
-              AND time <= :end_date
-            ORDER BY time
-        """),
-        {"region_id": region_id, "start_date": start_dt, "end_date": end_dt},
-    )
-    rows = result.fetchall()
 
-    data = [
-        {
-            "time": row[0].isoformat(),
-            "precipitation": row[1],
-            "temperature": row[2],
-            "wind_speed": row[3],
-            "wind_direction": row[4],
-            "evapotranspiration": row[5],
-            "soil_moisture": row[6],
-        }
-        for row in rows
-    ]
+@router.get("/current-status")
+async def get_current_status(
+    region_id: int = Query(1, description="Region ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Latest indicator snapshot + active alerts for a region."""
+    return await svc.get_current_status(region_id, db)
 
-    return {"region_id": region_id, "data": data}
+
+@router.get("/risk-timeseries")
+async def get_risk_timeseries(
+    region_id: int = Query(1, description="Region ID"),
+    start_date: str = Query("2015-01-01"),
+    end_date: str = Query("2025-12-31"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Desertification risk timeseries for a region."""
+    return await svc.get_risk_timeseries(region_id, start_date, end_date, db)
+
+
+@router.get("/landcover")
+async def get_landcover(
+    region_id: int = Query(..., description="Subregion id"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Annual MCD12Q1 land-cover composition for a sandy land."""
+    try:
+        return await svc.get_landcover(region_id, db)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/alerts")
+async def list_alerts(
+    region_id: int | None = Query(None),
+    severity: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    """Recent alerts, optionally filtered by region or severity."""
+    return await svc.list_alerts(region_id, severity, limit, db)
