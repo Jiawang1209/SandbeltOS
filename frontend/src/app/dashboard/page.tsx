@@ -288,34 +288,43 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-white p-1">
-          <button
-            onClick={() => setSelectedId(null)}
-            className={`rounded-full px-3.5 py-1 text-xs transition ${
-              selectedId == null
-                ? "bg-[var(--ink)] text-white font-medium"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-            }`}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-white p-1">
+            <button
+              onClick={() => setSelectedId(null)}
+              className={`rounded-full px-3.5 py-1 text-xs transition ${
+                selectedId == null
+                  ? "bg-[var(--ink)] text-white font-medium"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              两大沙地
+            </button>
+            {subregionIds.map((id) => {
+              const rd = regionDataMap[id];
+              const active = id === selectedId;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setSelectedId(id)}
+                  className={`rounded-full px-3.5 py-1 text-xs transition ${
+                    active
+                      ? "bg-[var(--ink)] text-white font-medium"
+                      : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                  }`}
+                >
+                  {rd.region.name}
+                </button>
+              );
+            })}
+          </div>
+          <a
+            href="/chat"
+            className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--ink)] hover:text-[var(--ink)]"
           >
-            两大沙地
-          </button>
-          {subregionIds.map((id) => {
-            const rd = regionDataMap[id];
-            const active = id === selectedId;
-            return (
-              <button
-                key={id}
-                onClick={() => setSelectedId(id)}
-                className={`rounded-full px-3.5 py-1 text-xs transition ${
-                  active
-                    ? "bg-[var(--ink)] text-white font-medium"
-                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-                }`}
-              >
-                {rd.region.name}
-              </button>
-            );
-          })}
+            <span aria-hidden>💬</span>
+            <span>智能助手</span>
+          </a>
         </div>
       </header>
 
