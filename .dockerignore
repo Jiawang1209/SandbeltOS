@@ -1,0 +1,67 @@
+# ------- 版本控制 & IDE -------
+.git
+.gitignore
+.github
+.vscode
+.idea
+.claude
+.omc
+
+# ------- 环境变量 & 密钥（绝不进镜像） -------
+.env
+.env.*
+!.env.example
+secrets/
+
+# ------- Python -------
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/htmlcov
+**/.venv
+**/venv
+**/dist
+**/build
+**/*.egg-info
+
+# ------- Node / Next.js -------
+**/node_modules
+**/.next
+**/out
+**/.turbo
+**/npm-debug.log*
+**/yarn-debug.log*
+**/pnpm-debug.log*
+
+# ------- 大文件 & 运行态数据（通过 volume 挂载，不进镜像） -------
+data/postgres/
+data/redis/
+data/chroma/
+data/rag_docs/
+data/hf_cache/
+data/boundaries/*.shp
+data/boundaries/*.tif
+data/boundaries/*.nc
+data/sample/*.csv
+backend/rag/chroma_store/
+backend/rag/docs/
+backend/ml/models/*.pt
+backend/ml/models/*.pkl
+*.nc
+*.tif
+*.hdf
+
+# ------- 测试 / 日志产物 -------
+frontend/test-results/
+frontend/playwright-report/
+**/*.log
+logfile
+
+# ------- OS -------
+**/.DS_Store
+**/Thumbs.db
