@@ -460,7 +460,12 @@ export default function DashboardPage() {
               />
             )}
             {!compareMode && layerMode === "risk" && <RiskLegend />}
-            {!compareMode && layerMode === "hotspot" && <HotspotLegend />}
+            {!compareMode && layerMode === "ndvi" && (
+              <NdviGradientLegend title="植被覆盖 NDVI" />
+            )}
+            {!compareMode && layerMode === "hotspot" && (
+              <NdviGradientLegend title="像素 NDVI" />
+            )}
             {!compareMode &&
               (layerMode === "ndvi" || layerMode === "hotspot") &&
               selectedYear != null &&
@@ -782,9 +787,11 @@ function LayerToggle({
   );
 }
 
-function HotspotLegend() {
+function NdviGradientLegend({ title }: { title: string }) {
   // Sample the same sand→green ramp used by RegionMap at a few NDVI stops so
-  // the legend reads as a gradient strip with anchor labels.
+  // the legend reads as a gradient strip with anchor labels. Shared by the
+  // polygon-level 植被覆盖 view and the pixel-level 像素热点 view since both
+  // map NDVI onto the same ramp.
   const stops = [0.25, 0.29, 0.33, 0.37, 0.42];
   const sand = [212, 165, 116];
   const green = [46, 125, 50];
@@ -798,7 +805,7 @@ function HotspotLegend() {
   return (
     <div className="absolute bottom-3 left-3 rounded-md border border-[var(--line)] bg-white/90 px-3 py-2 text-[10px] shadow-sm backdrop-blur">
       <div className="mb-1 font-semibold tracking-wide text-[var(--ink)]">
-        像素 NDVI
+        {title}
       </div>
       <div
         className="h-2 w-36 rounded-full"

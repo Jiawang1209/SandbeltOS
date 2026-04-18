@@ -60,6 +60,9 @@ body {
 :lang(zh), :lang(zh-CN), :lang(zh-Hans) {
   font-family: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC",
     "Source Han Sans CN", "Microsoft YaHei", sans-serif;
+  /* Force simplified Unihan variants so Unihan-ambiguous codepoints render
+   * as SC glyphs even when the system CJK fallback would pick TC by locale. */
+  font-variant-east-asian: simplified;
 }
 
 /* Serif for institutional titles — Simplified Chinese first */
@@ -200,14 +203,23 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
-/* Large display numerals (TPDC-style stats strip) */
+/* Large display numerals (TPDC-style stats strip).
+ * SC fonts must come before -apple-system: on macOS the system CJK fallback
+ * for -apple-system picks a locale-preferred glyph set, which renders
+ * Unihan-ambiguous characters (点/點, 连/連, 观/觀…) in traditional form
+ * when the OS locale isn't simplified. Putting PingFang SC first pins SC. */
 .display-num {
-  font-family: var(--font-inter), "Inter", -apple-system,
-    "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", sans-serif;
+  font-family: var(--font-inter), "Inter", "PingFang SC",
+    "Hiragino Sans GB", "Source Han Sans SC", "Source Han Sans CN",
+    "Microsoft YaHei", -apple-system, sans-serif;
   font-variant-numeric: tabular-nums;
+  font-variant-east-asian: simplified;
   font-weight: 600;
   letter-spacing: -0.02em;
-  font-feature-settings: "tnum" 1, "ss01" 1, "cv10" 1;
+  /* Only `tnum` here. Inter stylistic sets like `ss01` / `cv10` cause PingFang
+   * SC to substitute traditional glyphs for some Unihan-ambiguous codepoints
+   * (e.g. 点 → 點, 观 → 觀) when CJK text falls through the font stack. */
+  font-feature-settings: "tnum" 1;
 }
 
 /* Subtle topographic background for hero strip */

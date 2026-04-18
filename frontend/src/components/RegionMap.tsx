@@ -223,11 +223,24 @@ export default function RegionMap({
       }
     };
 
-    if (map.isStyleLoaded()) {
-      addLayers();
-    } else {
-      map.on("load", addLayers);
-    }
+    // rAF poll instead of `map.on("load", ...)`: the "load" event only fires
+    // once on initial style load, so a handler attached after that point is
+    // dead. `isStyleLoaded()` can also transiently return false right after a
+    // sibling effect calls setData/addLayer, so we keep retrying until it's
+    // true. Cancellation prevents effect re-runs from stacking polls.
+    let cancelled = false;
+    const tryAdd = () => {
+      if (cancelled) return;
+      if (map.isStyleLoaded()) {
+        addLayers();
+      } else {
+        requestAnimationFrame(tryAdd);
+      }
+    };
+    tryAdd();
+    return () => {
+      cancelled = true;
+    };
   }, [regions, ndviSummary, riskSummary, layerMode, ndviYearly]);
 
   // Pixel-grid hotspot overlay + sandy-fill opacity. Unified into one effect
@@ -319,11 +332,24 @@ export default function RegionMap({
       }
     };
 
-    if (map.isStyleLoaded()) {
-      apply();
-    } else {
-      map.on("load", apply);
-    }
+    // Same "load fires only once" trap as the sandy-fill effect above — and
+    // this one is the actual cause of the "switch out of hotspot does nothing"
+    // bug, because after the sandy-fill setData just above, `isStyleLoaded()`
+    // transiently returns false here and the `map.on("load", apply)` callback
+    // was never firing again, leaving hotspot visibility stuck on "visible".
+    let cancelled = false;
+    const tryApply = () => {
+      if (cancelled) return;
+      if (map.isStyleLoaded()) {
+        apply();
+      } else {
+        requestAnimationFrame(tryApply);
+      }
+    };
+    tryApply();
+    return () => {
+      cancelled = true;
+    };
   }, [hotspotGrid, layerMode, selectedRegionId]);
 
   // Border width still responds independently to selection so the selected
@@ -374,7 +400,9 @@ export default function RegionMap({
     const doFit = () => {
       map.resize();
       map.fitBounds(bounds, {
-        padding: selectedRegionId != null ? 60 : 40,
+        // Larger padding on single-region view gives breathing room around the
+        // sandy-land polygon so it doesn't crowd the edges of the map pane.
+        padding: selectedRegionId != null ? 80 : 40,
         duration: animated ? 700 : 0,
       });
     };

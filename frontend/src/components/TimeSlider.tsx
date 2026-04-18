@@ -49,7 +49,7 @@ export default function TimeSlider({
   const max = years[years.length - 1];
 
   return (
-    <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border border-[var(--line)] bg-white/95 px-4 py-2 text-[11px] shadow-sm backdrop-blur">
+    <div className="absolute bottom-3 right-3 flex items-center gap-3 rounded-full border border-[var(--line)] bg-white/95 px-4 py-2 text-[11px] shadow-sm backdrop-blur">
       <button
         type="button"
         onClick={() => setPlaying((p) => !p)}
