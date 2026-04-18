@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import type { ChatMessage, Metrics, Source } from "@/lib/chat-types";
 import { parseSSE } from "@/lib/sse";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
