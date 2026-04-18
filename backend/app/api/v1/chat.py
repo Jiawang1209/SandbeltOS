@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from app.services import query_router
 from rag import live_metrics, retriever
-from rag.claude_client import stream_completion
+from rag.llm_client import stream_completion
 from rag.prompt_templates import build_prompt, build_sources_meta
 
 router = APIRouter()

@@ -18,13 +18,17 @@ class Settings(BaseSettings):
     cds_url: str = "https://cds.climate.copernicus.eu/api"
     cds_key: str = ""
 
-    # LLM
+    # LLM (OpenAI-compatible: CSTCloud uni-api, Claude proxy, vLLM, etc.)
+    llm_base_url: str = "https://uni-api.cstcloud.cn/v1"
+    llm_api_key: str = ""
+    llm_model: str = "qwen3:235b"
+    llm_max_tokens: int = 2048
+
+    # Legacy / alt-provider keys (kept so old .env files don't break)
     anthropic_api_key: str = ""
     openai_api_key: str = ""
 
     # --- RAG ---
-    claude_model: str = "claude-sonnet-4-6"
-    claude_max_tokens: int = 2048
 
     rag_embedder: str = "BAAI/bge-m3"
     rag_reranker: str = "BAAI/bge-reranker-v2-m3"
