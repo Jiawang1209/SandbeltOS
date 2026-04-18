@@ -15,16 +15,33 @@ class Settings(BaseSettings):
     gee_key_file: str = "secrets/gee-key.json"
 
     # CDS API
-    cds_url: str = "https://cds.climate.copernicus.eu/api/v2"
+    cds_url: str = "https://cds.climate.copernicus.eu/api"
     cds_key: str = ""
 
     # LLM
     anthropic_api_key: str = ""
     openai_api_key: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # --- RAG ---
+    claude_model: str = "claude-sonnet-4-6"
+    claude_max_tokens: int = 2048
+
+    rag_embedder: str = "BAAI/bge-m3"
+    rag_reranker: str = "BAAI/bge-reranker-v2-m3"
+    rag_top_k_retrieve: int = 20
+    rag_top_k_rerank: int = 5
+    rag_chunk_size: int = 800
+    rag_chunk_overlap: int = 100
+
+    chroma_persist_dir: str = "backend/rag/chroma_store"
+    rag_docs_dir: str = "backend/rag/docs"
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+settings = get_settings()

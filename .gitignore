@@ -50,6 +50,12 @@ data/rag_docs/*.pdf
 *.db
 chroma_db/
 
+# Phase 4 RAG
+backend/rag/chroma_store/
+backend/rag/docs/*.pdf
+backend/rag/docs/manifest*.json
+backend/rag/docs/download*.log
+
 # ML models
 backend/ml/models/*.pt
 backend/ml/models/*.pkl
