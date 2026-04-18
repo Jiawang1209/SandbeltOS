@@ -52,9 +52,15 @@ chroma_db/
 
 # Phase 4 RAG
 backend/rag/chroma_store/
-backend/rag/docs/*.pdf
+backend/rag/docs/**/*.pdf
 backend/rag/docs/manifest*.json
 backend/rag/docs/download*.log
+# Accidental nested chroma from running ingest in wrong cwd
+backend/backend/
+
+# Playwright artifacts
+frontend/test-results/
+frontend/playwright-report/
 
 # ML models
 backend/ml/models/*.pt
