@@ -1,5 +1,32 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from functools import lru_cache
+
+
+# Resolves to the `backend/` directory regardless of uvicorn's CWD — needed
+# because chromadb opens its SQLite file relative to `chroma_persist_dir` and
+# will fail with SQLITE_CANTOPEN (code 14) when the path is relative and the
+# process was launched from a different working directory.
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+def _resolve_backend_path(value: str) -> str:
+    """Anchor relative RAG paths to BACKEND_DIR.
+
+    Both `.env` overrides and the defaults use `backend/rag/...`. If the
+    process CWD is already `backend/` (as uvicorn --app-dir does), a plain
+    relative path produces `backend/backend/rag/...`. Strip a leading
+    `backend/` and resolve against BACKEND_DIR to make the behavior
+    independent of where the process was launched from.
+    """
+    p = Path(value)
+    if p.is_absolute():
+        return str(p)
+    parts = p.parts
+    if parts and parts[0] == "backend":
+        parts = parts[1:]
+    return str(BACKEND_DIR.joinpath(*parts))
 
 
 class Settings(BaseSettings):
@@ -37,8 +64,13 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 800
     rag_chunk_overlap: int = 100
 
-    chroma_persist_dir: str = "backend/rag/chroma_store"
-    rag_docs_dir: str = "backend/rag/docs"
+    chroma_persist_dir: str = str(BACKEND_DIR / "rag" / "chroma_store")
+    rag_docs_dir: str = str(BACKEND_DIR / "rag" / "docs")
+
+    @field_validator("chroma_persist_dir", "rag_docs_dir", mode="after")
+    @classmethod
+    def _anchor_rag_paths(cls, v: str) -> str:
+        return _resolve_backend_path(v)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
