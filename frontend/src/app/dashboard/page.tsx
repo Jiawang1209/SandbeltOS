@@ -27,6 +27,9 @@ import AchievementChart from "@/components/AchievementChart";
 import ComparisonChart from "@/components/ComparisonChart";
 import LandCoverChart from "@/components/LandCoverChart";
 import TimeSlider from "@/components/TimeSlider";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
+import StatsBar from "@/components/StatsBar";
 import {
   fetchRegions,
   fetchTimeseries,
@@ -276,61 +279,40 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface-warm)] px-6 py-3">
-        <div className="flex items-baseline gap-3">
-          <a href="/" className="text-[17px] font-bold tracking-tight text-[var(--ink)]">
-            SandbeltOS
-          </a>
-          <span className="text-xs text-[var(--ink-soft)]">/</span>
-          <span className="text-xs uppercase tracking-[0.18em] text-[var(--ink-muted)]">
-            Three-North Shelterbelt
-          </span>
-        </div>
+      {/* Institutional header */}
+      <SiteHeader
+        regions={[
+          { id: null, label: "两大沙地" },
+          ...subregionIds.map((id) => ({ id, label: regionDataMap[id].region.name })),
+        ]}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+      />
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-white p-1">
-            <button
-              onClick={() => setSelectedId(null)}
-              className={`rounded-full px-3.5 py-1 text-xs transition ${
-                selectedId == null
-                  ? "bg-[var(--ink)] text-white font-medium"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              两大沙地
-            </button>
-            {subregionIds.map((id) => {
-              const rd = regionDataMap[id];
-              const active = id === selectedId;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setSelectedId(id)}
-                  className={`rounded-full px-3.5 py-1 text-xs transition ${
-                    active
-                      ? "bg-[var(--ink)] text-white font-medium"
-                      : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-                  }`}
-                >
-                  {rd.region.name}
-                </button>
-              );
-            })}
-          </div>
-          <a
-            href="/chat"
-            className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-white px-3.5 py-1.5 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--ink)] hover:text-[var(--ink)]"
-          >
-            <span aria-hidden>💬</span>
-            <span>智能助手</span>
-          </a>
-        </div>
-      </header>
+      {/* Hero stats strip */}
+      <StatsBar
+        regionCount={subregionIds.length}
+        totalAreaKm2={Math.round(totalArea)}
+        yearsSpan={
+          availableYears.length > 0
+            ? { from: availableYears[0], to: availableYears[availableYears.length - 1] }
+            : null
+        }
+        latestRiskLevel={
+          current?.latest?.risk_level ??
+          (() => {
+            const vals = Object.values(regionDataMap)
+              .map((r) => r.latest?.risk_level)
+              .filter((v): v is number => v != null);
+            return vals.length > 0 ? Math.max(...vals) : null;
+          })()
+        }
+        datasetsCount={4}
+      />
 
       {currentAlerts.length > 0 && <AlertBanner alerts={currentAlerts} />}
 
-      <main className="flex-1 px-5 py-4">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-6">
         <div
           className="grid gap-3"
           style={{
@@ -644,6 +626,8 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      <SiteFooter />
 
       <ChatWidget
         regionHint={selectedId != null ? REGION_ID_TO_ALIAS[selectedId] ?? null : null}

@@ -96,6 +96,7 @@ export default function RegionMap({
       },
       center: [115, 43],
       zoom: 5,
+      attributionControl: false,
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");

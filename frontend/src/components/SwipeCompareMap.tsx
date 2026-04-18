@@ -97,12 +97,14 @@ export default function SwipeCompareMap({
       style: buildStyle(beforeUrl),
       center: [118, 44],
       zoom: 6,
+      attributionControl: false,
     });
     const after = new maplibregl.Map({
       container: afterRef.current,
       style: buildStyle(afterUrl),
       center: [118, 44],
       zoom: 6,
+      attributionControl: false,
     });
     after.addControl(new maplibregl.NavigationControl(), "top-right");
 
