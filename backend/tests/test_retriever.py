@@ -40,3 +40,25 @@ def test_retrieve_scores_descending() -> None:
     results = retrieve("afforestation soil carbon", region=None, top_k=10)
     scores = [r.score for r in results]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_retrieve_rerank_improves_ordering() -> None:
+    """A highly specific query should place the matching paper first after rerank."""
+    from rag.retriever import retrieve
+
+    results = retrieve(
+        "Caragana korshinskii drought response Loess Plateau",
+        region=None,
+        top_k=3,
+        use_rerank=True,
+    )
+    assert len(results) >= 1
+    assert "caragana" in results[0].chunk.source.lower()
+
+
+def test_retrieve_no_rerank_returns_top_k() -> None:
+    """Dense-only fallback path still returns top_k results."""
+    from rag.retriever import retrieve
+
+    results = retrieve("wind erosion", region=None, top_k=5, use_rerank=False)
+    assert len(results) == 5
