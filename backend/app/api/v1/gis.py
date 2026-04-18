@@ -24,7 +24,10 @@ async def get_regions(db: AsyncSession = Depends(get_db)):
         if bbox_raw:
             bbox = json.loads(bbox_raw) if isinstance(bbox_raw, str) else bbox_raw
             if "coordinates" in bbox:
-                geometry = {"type": "Polygon", "coordinates": bbox["coordinates"]}
+                geometry = {
+                    "type": bbox.get("type", "Polygon"),
+                    "coordinates": bbox["coordinates"],
+                }
             elif all(k in bbox for k in ("north", "south", "east", "west")):
                 n, s, e, w = bbox["north"], bbox["south"], bbox["east"], bbox["west"]
                 geometry = {
