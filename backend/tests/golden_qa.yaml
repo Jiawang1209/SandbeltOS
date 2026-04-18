@@ -1,0 +1,74 @@
+- id: 1
+  question: "科尔沁沙地近 20 年 NDVI 趋势怎样？"
+  # Pattern relaxed to the corpus we actually have: "three-north" PDFs
+  # haven't been ingested yet; inner_mongolia / hunshandake / horqin are.
+  must_include_source_patterns:
+    - "inner_mongolia"
+  must_include_keywords: ["NDVI"]
+  min_length: 80
+
+- id: 2
+  question: "浑善达克现在风险等级是多少？为什么？"
+  must_include_source_patterns:
+    - "hunshandake"
+  must_include_keywords: ["风险"]
+  min_length: 80
+  expects_live_metrics: true
+
+- id: 3
+  question: "RWEQ 公式怎么算？用了哪些输入？"
+  must_include_source_patterns:
+    - "wind_erosion"
+  must_include_keywords: ["RWEQ", "风速"]
+  min_length: 100
+
+- id: 4
+  question: "Caragana korshinskii 适合在哪些区域造林？"
+  must_include_source_patterns:
+    - "caragana"
+  must_include_keywords: ["Caragana"]
+  min_length: 80
+
+- id: 5
+  question: "三北防护林科学绿化策略的核心原则是什么？"
+  must_include_source_patterns:
+    - "scientific-greening"
+  must_include_keywords: ["绿化"]
+  min_length: 100
+
+- id: 6
+  question: "为什么 2022 年 NE 内蒙古土壤侵蚀下降？"
+  must_include_source_patterns:
+    - "decreasing_soil_erosion"
+  must_include_keywords: ["侵蚀", "下降"]
+  min_length: 100
+
+- id: 7
+  question: "浑善达克的固沙林对土壤性质有何影响？"
+  must_include_source_patterns:
+    - "hunshandake"
+    - "sand_fixation"
+  must_include_keywords: ["土壤"]
+  min_length: 100
+
+- id: 8
+  question: "Populus simoni 在辽宁沙地表现如何？"
+  must_include_source_patterns:
+    - "populus_simoni"
+  must_include_keywords: ["Populus"]
+  min_length: 80
+
+- id: 9
+  question: "怎样判断一个区域是否已沙化？"
+  must_include_keywords: ["沙化"]
+  min_length: 100
+
+- id: 10
+  question: "实时数据显示科尔沁 NDVI 0.3，算偏低吗？"
+  # This is an interpretive live-data question — no specific source is
+  # guaranteed, so we only assert retrieval returns *something* and that
+  # the answer mentions NDVI + 0.3. Expand source patterns once more
+  # NDVI baseline literature is ingested.
+  must_include_keywords: ["NDVI", "0.3"]
+  min_length: 100
+  expects_live_metrics: true
