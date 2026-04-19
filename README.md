@@ -119,6 +119,82 @@ cd frontend && npm run dev
 
 ---
 
+## 💻 本地开发 Web 调用方法
+
+### 前端页面入口（Next.js · 默认端口 3000）
+
+| 页面 | URL | 说明 |
+|---|---|---|
+| 首页 | <http://localhost:3000> | 项目介绍 / 入口导航 |
+| 仪表盘 | <http://localhost:3000/dashboard> | 双沙地地图 + 生态指标 + 像素热点 |
+| RAG 问答 | <http://localhost:3000/chat> | 文献 + 实时指标融合的流式对话 |
+
+> 前端通过 `NEXT_PUBLIC_API_URL` 环境变量访问后端。本地默认 `http://localhost:8000`，跨设备访问改成局域网 IP 后需重启 `npm run dev`。
+
+### 后端 API 入口（FastAPI · 默认端口 8000）
+
+| 地址 | 用途 |
+|---|---|
+| <http://localhost:8000/docs> | Swagger UI（可直接点按钮试调） |
+| <http://localhost:8000/redoc> | ReDoc 文档视图 |
+| <http://localhost:8000/openapi.json> | OpenAPI 规范 JSON |
+| <http://localhost:8000/health> | 健康检查 |
+
+### 常用接口 curl 示例
+
+```bash
+# 健康检查
+curl http://localhost:8000/health
+
+# 区域 GeoJSON（地图边界）
+curl "http://localhost:8000/api/v1/gis/regions"
+
+# 生态指标时序（科尔沁沙地 NDVI，2020-2024）
+curl "http://localhost:8000/api/v1/ecological/timeseries?region=horqin&metric=ndvi&start=2020-01-01&end=2024-12-31"
+
+# 当前综合状态
+curl "http://localhost:8000/api/v1/ecological/current-status?region=otindag"
+
+# 像素级 NDVI 栅格
+curl "http://localhost:8000/api/v1/grid/ndvi?region=horqin&date=2024-08-01"
+
+# RAG 问答（SSE 流式，加 -N 看实时分片）
+curl -N -X POST http://localhost:8000/api/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"question":"科尔沁沙地近五年植被恢复情况如何？","region":"horqin"}'
+```
+
+### 跨端/局域网访问
+
+```bash
+# 后端监听所有网卡
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 前端开启 LAN
+cd frontend && npm run dev -- -H 0.0.0.0
+```
+
+用 `ipconfig getifaddr en0`（macOS）拿到局域网 IP，在手机/平板浏览器访问 `http://<你的IP>:3000`；记得把 `.env` 的 `NEXT_PUBLIC_API_URL` 和 `CORS_ORIGINS` 改成对应地址后**重启前端 dev server**（`NEXT_PUBLIC_*` 在启动时 inline）。
+
+### 前端直接调用后端（浏览器控制台快速试）
+
+```js
+// 在 http://localhost:3000 的 DevTools Console
+fetch('http://localhost:8000/api/v1/ecological/current-status?region=horqin')
+  .then(r => r.json()).then(console.log)
+```
+
+### 常见排错
+
+| 现象 | 原因 & 解决 |
+|---|---|
+| 前端报 CORS 错 | `.env` 的 `CORS_ORIGINS` 没包含当前前端地址，改完重启后端 |
+| 地图/图表空白 | 后端未启动或 `NEXT_PUBLIC_API_URL` 指错，打开 Network 面板确认 4xx/5xx |
+| SSE 流一次性返回 | 反代关闭了 buffering；本地直连不会有此问题，部署时见 `docs/DEPLOYMENT.md` 的 Nginx 配置 |
+| `/api/v1/*` 返回 404 | 后端未加载对应路由模块，检查 `backend/app/api/v1/__init__.py` |
+
+---
+
 ## 📡 API 速查
 
 | 方法 | 路径 | 用途 |
