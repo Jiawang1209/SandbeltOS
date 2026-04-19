@@ -66,7 +66,7 @@ export default function ChatPage() {
                 {active?.title ?? "智慧问答"}
               </h1>
               <span className="text-[11px] text-[var(--ink-soft)]">
-                RAG · bge-m3 + Claude Sonnet
+                RAG · bge-m3 + 磐石大模型
               </span>
             </div>
             <button
