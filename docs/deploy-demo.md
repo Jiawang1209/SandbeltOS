@@ -4,9 +4,11 @@
 >
 > **部署方式**:**全部原生安装**(不用 Docker),方便随时改代码/看日志/排查问题。
 >
-> **目标环境**:Ubuntu 22.04 / 24.04 LTS · 4 vCPU / 16 GB RAM / 100 GB SSD · 公网 IP `175.27.213.32`
+> **目标环境**:**Ubuntu 22.04 LTS (Jammy)** · 4 vCPU / 16 GB RAM / 100 GB SSD · 公网 IP `175.27.213.32`
 >
-> **最后更新**:2026-04-19(已兼容 Ubuntu 24.04 Noble)
+> **⚠️ 不要用 Ubuntu 24.04 (Noble)**:TimescaleDB / 某些 Python 扩展 / NVIDIA 驱动等第三方 apt 源**截至 2026-04 仍未适配 Noble**。强烈建议**重装成 22.04**,省掉一整页踩坑。详见 [§0.0 为什么不用 24.04](#step-00--为什么不用-ubuntu-2404)。
+>
+> **最后更新**:2026-04-19(全文对齐 Ubuntu 22.04 Jammy)
 
 ---
 
@@ -14,15 +16,16 @@
 
 1. [架构速览](#1-架构速览)
 2. [本机准备清单](#2-本机准备清单)
-3. [Step 0 · 服务器前置](#step-0--服务器前置)
-4. [Step 1 · 数据层(PostgreSQL + Redis)](#step-1--数据层postgresql--redis)
-5. [Step 2 · 从本机拷数据](#step-2--从本机拷数据)
-6. [Step 3 · Backend(Python)](#step-3--backendpython)
-7. [Step 4 · Frontend(Node / Next.js)](#step-4--frontendnode--nextjs)
-8. [Step 5 · systemd 常驻 + 验证](#step-5--systemd-常驻--验证)
-9. [日常运维](#日常运维)
-10. [常见问题速查](#常见问题速查)
-11. [部署 Checklist](#部署-checklist)
+3. [Step 0.0 · 为什么不用 Ubuntu 24.04](#step-00--为什么不用-ubuntu-2404)
+4. [Step 0 · 服务器前置](#step-0--服务器前置)
+5. [Step 1 · 数据层(PostgreSQL + Redis)](#step-1--数据层postgresql--redis)
+6. [Step 2 · 从本机拷数据](#step-2--从本机拷数据)
+7. [Step 3 · Backend(Python)](#step-3--backendpython)
+8. [Step 4 · Frontend(Node / Next.js)](#step-4--frontendnode--nextjs)
+9. [Step 5 · systemd 常驻 + 验证](#step-5--systemd-常驻--验证)
+10. [日常运维](#日常运维)
+11. [常见问题速查](#常见问题速查)
+12. [部署 Checklist](#部署-checklist)
 
 ---
 
@@ -58,6 +61,43 @@
 
 - `LLM_API_KEY`(CSTCloud uni-api 或任何 OpenAI 兼容服务)
 - **不需要** GEE / CDS key(因为不跑采集)
+
+---
+
+## Step 0.0 · 为什么不用 Ubuntu 24.04
+
+**一句话**:Ubuntu **22.04 LTS (Jammy)** 是**目前云服务器部署最稳的版本**,这份手册全文以它为基线。
+
+**对比**:
+
+| 版本 | 官方支持到 | 生态适配度 | 建议 |
+|---|---|---|---|
+| Ubuntu **20.04 Focal** | 2025-04(已 EOL) | ⚠️ glibc / gcc 太老,PyTorch 新版不编译 | ❌ 不用 |
+| Ubuntu **22.04 Jammy** | 2027-04 · Pro 2032 | ✅ 所有第三方 apt 源(TimescaleDB / NVIDIA / Docker / deadsnakes)**第一时间都支持** | ✅ **推荐** |
+| Ubuntu **24.04 Noble** | 2029-04 | ⚠️ 2024-04 才发布,**截至 2026-04 仍有关键第三方源没发包**(例如 TimescaleDB 仓库无 noble) | ⏳ 再等 6-12 个月 |
+
+**你这次踩的坑**(`NO_PUBKEY` + `Unable to locate package timescaledb-2-postgresql-16`)**根因就是** TimescaleDB 没发 Noble 包。虽然可以手动把 codename 写死 `jammy` 绕过,但**这样的坑在 24.04 上会连环出现**(后面装 CUDA / 某些地理库还会继续踩),**得不偿失**。
+
+### 如果你的服务器当前是 24.04,建议重装
+
+**腾讯云重装步骤**(其他云厂商类似):
+
+1. 登录腾讯云控制台 → 云服务器 CVM → 选中实例 → "重装系统"
+2. 操作系统选 **"Ubuntu Server 22.04 LTS 64位"**
+3. 登录方式选 SSH 密钥(推荐)或密码
+4. 确认,**约 20 分钟完成**
+5. 重装完用新密钥/密码 `ssh ubuntu@175.27.213.32`
+6. 验证版本:
+
+```bash
+lsb_release -a
+# Description:  Ubuntu 22.04.x LTS
+# Codename:     jammy
+```
+
+> ⚠️ **重装会清空系统盘**(`/` 分区),但**数据盘不动**。你这次服务器上只 git clone 了代码,代码在 GitHub 上,**重装零损失**。
+>
+> 重装后从 Step 0 重新开始。
 
 ---
 
@@ -99,7 +139,7 @@ mkdir -p secrets data/chroma data/hf_cache
 
 ### 1.1 加 PGDG + TimescaleDB 两个 apt 源
 
-> ⚠️ **Ubuntu 24.04 (Noble) 注意**:TimescaleDB 官方仓库**目前最新只发到 `jammy` (22.04)**,noble 还没发包。解决办法是把 TSDB 的 codename **写死成 `jammy`** —— TSDB 是 PG 扩展、跨 Ubuntu 版本兼容,装了能用。PGDG 仓库本身是支持 noble 的,保持 `$(lsb_release -cs)` 即可。
+> **前提**:你已经在 Ubuntu **22.04 (Jammy)** 上(验证:`lsb_release -cs` 应返回 `jammy`)。如果还是 noble,先回到 [§0.0](#step-00--为什么不用-ubuntu-2404) 重装。
 
 ```bash
 # —— PostgreSQL 官方源(PGDG) ——
@@ -111,27 +151,26 @@ echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
   sudo tee /etc/apt/sources.list.d/pgdg.list
 
 # —— TimescaleDB 官方源 ——
-# 用 gpg --dearmor 导入二进制密钥(比 .asc 文本更稳);curl 必须带 -L 跟 301 跳转
+# curl 必须带 -L 跟 301 跳转;gpg --dearmor 导入二进制密钥(比 .asc 更稳)
 curl -fsSL https://packagecloud.io/timescale/timescaledb/gpgkey | \
   sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg
 
-# codename 写死 jammy(不要用 lsb_release,noble 没发包)
 echo "deb [signed-by=/etc/apt/trusted.gpg.d/timescaledb.gpg] \
-  https://packagecloud.io/timescale/timescaledb/ubuntu/ jammy main" | \
+  https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -cs) main" | \
   sudo tee /etc/apt/sources.list.d/timescaledb.list
 
 sudo apt update
 ```
 
-**如果之前跑过旧文档版本残留了错误的 key / list 文件**,先清理再重来:
+**验收**:`apt update` 输出应该**只有 `Hit` / `Get`,不能有 `Err:` 或 `NO_PUBKEY`**。
+
+**如果之前跑过错误版本残留了坏的 key / list 文件**,先清理:
 
 ```bash
 sudo rm -f /etc/apt/sources.list.d/timescaledb.list
 sudo rm -f /etc/apt/trusted.gpg.d/timescaledb.asc /etc/apt/trusted.gpg.d/timescaledb.gpg
 # 然后重跑上面两段
 ```
-
-**apt update 输出应该干净无 GPG 错误**。`Hit / Get` 可以,不能有 `Err:` 或 `NO_PUBKEY`。
 
 ### 1.2 装包(严格版本)
 
