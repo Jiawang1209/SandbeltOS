@@ -102,17 +102,55 @@ sudo ufw status
 
 ```bash
 # 官方一键脚本
-curl -fsSL https://get.docker.com | sudo sh
+curl -fsSL https://get.docker.com | sudo sh # 失效
+
+# 2. 安装依赖
+sudo apt update
+sudo apt install ca-certificates curl gnupg
+
+# 3. 添加 Docker 官方 GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# 4. 添加仓库
+echo \
+  "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 5. 安装最新版
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# 创建ly的实例
+sudo useradd -m -d /home/data/student/ly -s /bin/bash -k /etc/skel ly
+
+#  新建 docker 组
+sudo groupadd docker
 
 # 让当前用户免 sudo 用 docker（退出重连生效）
-sudo usermod -aG docker ubuntu
+sudo usermod -aG docker ly
+
+# 重启 docker 服务
+sudo systemctl restart docker
+# 让当前 shell 临时刷新组身份
+newgrp docker
+
 exit
 ssh ubuntu@<IP>
 
 # 验证
-docker --version
+docker --version 
+# Docker version 29.4.0, build 9d7ad9f
 docker compose version
+# Docker Compose version v5.1.3
 docker ps   # 不报 permission denied 就 OK
+
+
+
 ```
 
 ### 3.1 国内镜像加速（强烈推荐）
@@ -145,8 +183,8 @@ sudo chown $USER:$USER /opt/sandbelt
 cd /opt/sandbelt
 
 # 克隆项目（替换成你的仓库地址）
-git clone https://github.com/<your-org>/SandbeltOS.git repo
-cd repo
+git clone https://github.com/Jiawang1209/SandbeltOS.git
+cd SandbeltOS
 
 # 建宿主机挂载目录
 mkdir -p secrets \
@@ -159,7 +197,7 @@ mkdir -p secrets \
 
 > 目录树此时应为：
 > ```
-> /opt/sandbelt/repo/
+> /opt/sandbelt/SandbeltOS/
 > ├── .env.example
 > ├── docker-compose.yml
 > ├── backend/Dockerfile
@@ -178,7 +216,7 @@ mkdir -p secrets \
 ## 5. 配置 `.env`（**最关键**）
 
 ```bash
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS/
 cp .env.example .env
 vim .env
 ```
@@ -251,12 +289,12 @@ FRONTEND_PORT=3000
 ```bash
 # 假设你本地项目在 ~/Desktop/SandbeltOS/
 scp ~/Desktop/SandbeltOS/secrets/gee-key.json \
-    ubuntu@<IP>:/opt/sandbelt/repo/secrets/
+    ubuntu@<IP>:/opt/sandbelt/SandbeltOS/secrets/
 
 # 回到服务器收紧权限
 ssh ubuntu@<IP>
-chmod 600 /opt/sandbelt/repo/secrets/gee-key.json
-ls -la /opt/sandbelt/repo/secrets/   # 应该显示 -rw-------
+chmod 600 /opt/sandbelt/SandbeltOS/secrets/gee-key.json
+ls -la /opt/sandbelt/SandbeltOS/secrets/   # 应该显示 -rw-------
 ```
 
 ---
