@@ -167,6 +167,7 @@ sudo apt update
 **如果之前跑过错误版本残留了坏的 key / list 文件**,先清理:
 
 ```bash
+# 没有做
 sudo rm -f /etc/apt/sources.list.d/timescaledb.list
 sudo rm -f /etc/apt/trusted.gpg.d/timescaledb.asc /etc/apt/trusted.gpg.d/timescaledb.gpg
 # 然后重跑上面两段
@@ -210,6 +211,18 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 GRANT ALL PRIVILEGES ON DATABASE sandbelt_db TO sandbelt;
 GRANT ALL ON SCHEMA public TO sandbelt;
 SQL
+
+
+#########
+sudo -u postgres psql <<'SQL'
+CREATE USER sandbelt WITH PASSWORD '123149947LIUyue';
+CREATE DATABASE sandbelt_db OWNER sandbelt;
+\c sandbelt_db
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+GRANT ALL PRIVILEGES ON DATABASE sandbelt_db TO sandbelt;
+GRANT ALL ON SCHEMA public TO sandbelt;
+SQL
 ```
 
 ### 1.4 数据层验证(4 条全通才能往下走)
@@ -221,7 +234,8 @@ sudo -u postgres psql -d sandbelt_db -c \
 # 应该有两行
 
 # ② sandbelt 用户能连
-PGPASSWORD='你的强密码' psql -h 127.0.0.1 -U sandbelt -d sandbelt_db -c "SELECT 1;"
+# PGPASSWORD='你的强密码' psql -h 127.0.0.1 -U sandbelt -d sandbelt_db -c "SELECT 1;"
+PGPASSWORD='123149947LIUyue' psql -h 127.0.0.1 -U sandbelt -d sandbelt_db -c "SELECT 1;"
 
 # ③ Redis
 redis-cli ping   # → PONG

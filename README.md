@@ -18,14 +18,86 @@
 
 ## 🧱 技术栈
 
-| 层 | 选型 |
-|---|---|
-| 后端 | FastAPI · SQLAlchemy · PostgreSQL + PostGIS (+ TimescaleDB 可选) · Redis |
-| 前端 | Next.js 16 · React 19 · MapLibre GL · ECharts · Tailwind CSS 4 |
-| 数据采集 | Google Earth Engine · Copernicus CDS · Prefect |
-| RAG | ChromaDB · BAAI/bge-m3 · BAAI/bge-reranker-v2-m3 · OpenAI-compatible LLM |
-| ML | Prophet · scikit-learn · (可选) PyTorch LSTM |
-| 运行环境 | Python 3.11 · Node.js 20 |
+### 前端（Frontend）
+
+| 组件 | 选型 | 版本 | 作用 |
+|---|---|---|---|
+| 框架 | **Next.js** (App Router) | 16.x | 服务端渲染 + React 路由 |
+| UI 库 | **React** | 19.x | 组件框架 |
+| 语言 | **TypeScript** | 5.x | 类型安全 |
+| 样式 | **Tailwind CSS** | 4.x | 原子化 CSS |
+| 地图 | **MapLibre GL JS** | 4.x | 矢量地图渲染（双沙地视图） |
+| 图表 | **Apache ECharts** | 5.x | 时序分析 / 栅格热力图 |
+| 运行时 | **Node.js** | 20.x | 构建和 SSR |
+| 端口 | — | **3000** | 浏览器访问 |
+
+### 后端（Backend）
+
+| 组件 | 选型 | 版本 | 作用 |
+|---|---|---|---|
+| 框架 | **FastAPI** | 0.115+ | 异步 REST API + SSE 流式 |
+| ASGI 服务器 | **Uvicorn** | 0.32+ | 运行时 |
+| ORM | **SQLAlchemy** (async) | 2.0+ | 数据库访问层 |
+| 驱动 | **asyncpg** + **psycopg2** | — | 异步/同步 PostgreSQL 驱动 |
+| 空间数据 | **GeoAlchemy2** · **geopandas** · **rasterio** · **shapely** · **fiona** · **pyproj** | — | PostGIS ORM + 栅格 / 矢量处理 |
+| 语言 | **Python** | 3.11 | |
+| 端口 | — | **8000** | API · `/docs` Swagger · `/redoc` |
+
+### 数据库（Database）
+
+| 组件 | 选型 | 版本 | 作用 |
+|---|---|---|---|
+| 主库 | **PostgreSQL** | 16 | 关系型存储 |
+| 空间扩展 | **PostGIS** | 3.4+ | 地理空间查询（`regions`, `pixels`） |
+| 时序扩展 | **TimescaleDB** | 2.x（可选） | 生态指标时序超表 |
+| 镜像 | `timescale/timescaledb-ha:pg16` | — | 同时自带 PostGIS 和 TimescaleDB |
+| 端口 | — | **5432**（仅容器内网） | |
+
+### 缓存（Cache）
+
+| 组件 | 选型 | 版本 | 作用 |
+|---|---|---|---|
+| 缓存 / 队列 | **Redis** | 7-alpine | 会话 · GEE 请求缓存 · 限流 |
+| 持久化 | **AOF** 模式 | — | `data/redis/` 宿主机挂载 |
+| 端口 | — | **6379**（仅容器内网） | |
+
+### RAG 向量库 & LLM 管线
+
+| 组件 | 选型 | 版本/模型 | 作用 |
+|---|---|---|---|
+| 向量库 | **ChromaDB** | — | 语料片段持久化（`data/chroma/`） |
+| 嵌入模型 | **BAAI/bge-m3** | ~2.0 GB | 文档 & 查询 embedding |
+| 重排模型 | **BAAI/bge-reranker-v2-m3** | ~1.1 GB | Top-K 精排 |
+| 加载器 | **FlagEmbedding** · **HuggingFace Transformers** | — | 本地加载 |
+| LLM 客户端 | **OpenAI-compatible** | — | 默认：中科院 uni-api `qwen3:235b` |
+| 框架 | **LangChain** | — | 链路编排 |
+| 文档切分 | chunk_size=800 · overlap=100 | — | 配置见 `.env` |
+| 流式 | **SSE**（Server-Sent Events） | — | `POST /api/v1/chat/stream` |
+
+### 机器学习（ML / 预测）
+
+| 组件 | 选型 | 作用 |
+|---|---|---|
+| 时序预测 | **Prophet** · **scikit-learn** · (可选) **PyTorch LSTM** | 未来 NDVI / 生态指标预测 |
+| 数据处理 | **xarray** · **netCDF4** · **pandas** · **numpy** | 多维栅格数据 / 表格运算 |
+
+### 数据采集（Data Ingestion）
+
+| 组件 | 来源 | 用途 |
+|---|---|---|
+| **Google Earth Engine** | MODIS NDVI / LST · SMAP · Landsat | 遥感影像与指标 |
+| **Copernicus CDS** | ERA5 气象再分析 | 风速 / 降水 / 气温 |
+| **Prefect** | — | 定时 ETL 工作流编排 |
+
+### 部署与基础设施（DevOps）
+
+| 组件 | 选型 | 作用 |
+|---|---|---|
+| 容器化 | **Docker** · **Docker Compose** | 一键全栈编排 |
+| 反向代理 | **Nginx** + **Certbot**（生产） | 域名 / HTTPS / SSE 兼容 |
+| 服务进程 | **systemd**（备选方案） | 非容器部署 |
+| CI/CD | GitHub | 源码托管 |
+| 密钥托管 | `secrets/` 目录（gitignore） | GEE service account |
 
 ---
 
@@ -211,18 +283,34 @@ fetch('http://localhost:8000/api/v1/ecological/current-status?region=horqin')
 
 ## 🚢 部署到云服务器
 
-完整部署手册见 **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**，涵盖：
+**三份文档，按需挑一个：**
 
-- 服务器规格选型与前置环境
-- 打包清单（什么要带、什么一定不要带）
-- Docker Compose 一键全栈（推荐）
-- systemd 原生部署备选方案
-- Vercel 前端 + 服务器后端的混合方案
-- PostgreSQL / ChromaDB 数据迁移
-- Nginx + HTTPS + SSE 流式配置
-- 备份、日志轮转、常见问题排错
+| 场景 | 文档 | 耗时 |
+|---|---|---|
+| **最快上手**：只想几分钟内跑起来 | **[QUICKSTART_CN.md](QUICKSTART_CN.md)** + `bash deploy.sh` | 15–30 分钟 |
+| **方案对比**：想知道 Docker / systemd / Vercel 各自利弊 | **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | — |
+| **手把手 Docker**：一步步跟着做，踩坑说明最全 | **[docs/docker.md](docs/docker.md)** | 参考手册 |
 
-> **TL;DR**：服务器装好 Docker，填好 `.env`，`docker compose up -d --build` 起全栈；Nginx 反代 + Certbot 签 HTTPS；`pg_dump` 把本地数据带过去。
+**TL;DR（Docker Compose 方式）：**
+
+```bash
+# 1. 登录服务器拉代码
+git clone https://github.com/Jiawang1209/SandbeltOS.git /opt/sandbelt/SandbeltOS
+cd /opt/sandbelt/SandbeltOS
+
+# 2. 一键部署脚本：装 Docker、建目录、校验 .env、启动
+bash deploy.sh
+
+# 3. 首次会生成 .env，编辑好后再跑一次
+vim .env    # 必改：POSTGRES_PASSWORD / LLM_API_KEY / NEXT_PUBLIC_API_URL / CORS_ORIGINS
+bash deploy.sh
+
+# 4. 访问
+# 浏览器：http://<服务器IP>:3000
+# Swagger：http://<服务器IP>:8000/docs
+```
+
+> 要 HTTPS + 域名？`docs/docker.md` 附录 A 有 Nginx + Certbot 的完整配置。
 
 ---
 
@@ -245,7 +333,12 @@ fetch('http://localhost:8000/api/v1/ecological/current-status?region=horqin')
 |---|---|
 | [PLAN.md](PLAN.md) | 分阶段开发计划、任务清单、验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构图、数据库 Schema、代码模板 |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 云服务器部署指南 |
+| [QUICKSTART_CN.md](QUICKSTART_CN.md) | 部署快速开始（3 步上线） |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 部署方案对比（Docker / systemd / Vercel） |
+| [docs/docker.md](docs/docker.md) | Docker 部署完全手册（含 Nginx + HTTPS） |
+| [deploy.sh](deploy.sh) | 一键部署脚本（装 Docker + 校验 .env + 启动） |
+| [scripts/deploy/export_local_data.sh](scripts/deploy/export_local_data.sh) | 本地数据导出（PostgreSQL + ChromaDB + PDF） |
+| [scripts/deploy/import_to_server.sh](scripts/deploy/import_to_server.sh) | 服务器端数据导入 |
 | [.env.example](.env.example) | 环境变量模板 |
 
 ---

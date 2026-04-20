@@ -100,20 +100,28 @@ sudo ufw status
 
 ## 3. 一次性安装 Docker
 
+### 3.0 方式 A · 官方一键脚本（最简单）
+
 ```bash
-# 官方一键脚本
-curl -fsSL https://get.docker.com | sudo sh # 失效
+curl -fsSL https://get.docker.com | sudo sh
+```
 
-# 2. 安装依赖
+若网络受限无法访问 get.docker.com，走方式 B。
+
+### 3.0 方式 B · 从 Docker 官方仓库装（Ubuntu/Debian）
+
+```bash
+# 安装依赖
 sudo apt update
-sudo apt install ca-certificates curl gnupg
+sudo apt install -y ca-certificates curl gnupg
 
-# 3. 添加 Docker 官方 GPG key
+# 添加 Docker 官方 GPG key
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
   sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# 4. 添加仓库
+# 添加仓库
 echo \
   "deb [arch=$(dpkg --print-architecture) \
   signed-by=/etc/apt/keyrings/docker.gpg] \
@@ -121,36 +129,33 @@ echo \
   $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# 5. 安装最新版
+# 安装最新版
 sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
 
-# 创建ly的实例
-sudo useradd -m -d /home/data/student/ly -s /bin/bash -k /etc/skel ly
+### 3.1 让当前用户免 sudo 用 docker
 
-#  新建 docker 组
-sudo groupadd docker
+```bash
+# 新建 docker 组（已存在则忽略报错）
+sudo groupadd docker 2>/dev/null || true
 
-# 让当前用户免 sudo 用 docker（退出重连生效）
-sudo usermod -aG docker ly
+# 把当前用户加入 docker 组
+sudo usermod -aG docker $USER
 
 # 重启 docker 服务
 sudo systemctl restart docker
-# 让当前 shell 临时刷新组身份
+sudo systemctl enable docker
+
+# 让当前 shell 临时刷新组身份（或者退出重连 SSH）
 newgrp docker
 
-exit
-ssh ubuntu@<IP>
-
 # 验证
-docker --version 
-# Docker version 29.4.0, build 9d7ad9f
+docker --version
+# 示例：Docker version 27.3.1, build ce12230
 docker compose version
-# Docker Compose version v5.1.3
+# 示例：Docker Compose version v2.29.7
 docker ps   # 不报 permission denied 就 OK
-
-
-
 ```
 
 ### 3.1 国内镜像加速（强烈推荐）
@@ -302,7 +307,7 @@ ls -la /opt/sandbelt/SandbeltOS/secrets/   # 应该显示 -rw-------
 ## 7. 首次构建 & 启动
 
 ```bash
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 docker compose up -d --build
 ```
 
@@ -360,7 +365,7 @@ scp sandbelt.dump ubuntu@<IP>:/tmp/
 **服务器**：
 
 ```bash
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 
 # 把 dump 丢进 postgres 容器
 docker compose cp /tmp/sandbelt.dump postgres:/tmp/
@@ -389,7 +394,7 @@ scp chroma_store.tgz ubuntu@<IP>:/tmp/
 **服务器**：
 
 ```bash
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 # 停 backend 再改动挂载卷数据
 docker compose stop backend
 
@@ -411,7 +416,7 @@ tar czf rag_docs.tgz -C backend/rag docs
 # 服务器
 scp rag_docs.tgz ubuntu@<IP>:/tmp/
 ssh ubuntu@<IP>
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 sudo tar xzf /tmp/rag_docs.tgz -C data/rag_docs --strip-components=1
 ```
 
@@ -453,7 +458,7 @@ docker compose up -d --build frontend backend
 ### 10.1 更新部署（改了代码 / `.env` 之后）
 
 ```bash
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 git pull
 docker compose up -d --build
 ```
@@ -520,7 +525,7 @@ docker system prune -a -f        # 清理无用镜像（谨慎）
 # /opt/sandbelt/backup.sh
 #!/bin/bash
 set -e
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 TS=$(date +%Y%m%d-%H%M%S)
 mkdir -p /opt/sandbelt/backups
 docker compose exec -T postgres pg_dump -U sandbelt -d sandbelt_db -Fc \
@@ -756,7 +761,7 @@ docker compose build --no-cache frontend && docker compose up -d
 如果你**没有本地数据可迁移**，走完 §7 启动后，`init.sql` 已经建好了表结构（空）。用仓库自带的种子脚本填充：
 
 ```bash
-cd /opt/sandbelt/repo
+cd /opt/sandbelt/SandbeltOS
 
 # 导入沙地矢量边界
 docker compose exec backend python scripts/seed_region_polygons.py

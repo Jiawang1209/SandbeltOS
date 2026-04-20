@@ -72,3 +72,8 @@ logfile
 
 # Temporary
 /tmp/
+
+# Deployment migration packages (本地导出的数据，绝不进 Git)
+migration/
+*.dump
+*.tgz
