@@ -44,6 +44,8 @@ chromadb>=0.5
 pypdf>=4.0
 PyMuPDF>=1.24.0
 FlagEmbedding>=1.2.10
+# FlagEmbedding 1.x imports helpers removed by newer Transformers releases.
+transformers==4.44.2
 anthropic>=0.25
 openai>=1.40
 
