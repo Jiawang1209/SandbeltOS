@@ -52,19 +52,6 @@ function riskToColor(level: number): string {
   return RISK_LEVEL_COLORS[level] ?? "#a1a1aa";
 }
 
-function extendBoundsWithGeometry(
-  bounds: maplibregl.LngLatBounds,
-  geometry: { type: string; coordinates: unknown } | null
-) {
-  if (!geometry) return;
-  const raw = geometry.coordinates as number[][][] | number[][][][];
-  const rings: number[][][] =
-    geometry.type === "MultiPolygon"
-      ? (raw as number[][][][]).flat()
-      : (raw as number[][][]);
-  for (const c of rings.flat()) bounds.extend([c[0], c[1]]);
-}
-
 export default function RegionMap({
   regions,
   ndviSummary,
@@ -80,10 +67,7 @@ export default function RegionMap({
   const popupsRef = useRef<maplibregl.Popup[]>([]);
   const fittedRef = useRef(false);
   const onSelectRef = useRef(onSelectRegion);
-
-  useEffect(() => {
-    onSelectRef.current = onSelectRegion;
-  }, [onSelectRegion]);
+  onSelectRef.current = onSelectRegion;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -259,9 +243,12 @@ export default function RegionMap({
     };
   }, [regions, ndviSummary, riskSummary, layerMode, ndviYearly]);
 
-  // Pixel-grid hotspot overlay + region-layer visibility. In hotspot mode the
-  // grid is the authoritative boundary, so hide the broader sandy-land fill
-  // and outline instead of stacking two competing shapes.
+  // Pixel-grid hotspot overlay + sandy-fill opacity. Unified into one effect
+  // because fill-opacity has to respond to both `layerMode` (dim under the
+  // hotspot grid) and `selectedRegionId` (highlight the active sandy land),
+  // and splitting them caused a race where switching out of hotspot mode
+  // left the hotspot-fill layer visually "stuck" and overwrote the selection
+  // highlight.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -327,33 +314,20 @@ export default function RegionMap({
         );
       }
 
-      if (map.getLayer("sandy-fill")) {
-        map.setLayoutProperty(
-          "sandy-fill",
-          "visibility",
-          hotspotActive ? "none" : "visible"
-        );
-      }
-      if (map.getLayer("sandy-border")) {
-        map.setLayoutProperty(
-          "sandy-border",
-          "visibility",
-          hotspotActive ? "none" : "visible"
-        );
-      }
-
-      // Single source of truth for sandy-fill opacity when the region layer is
-      // visible; hotspot mode hides it entirely so the grid edge defines extent.
+      // Single source of truth for sandy-fill opacity so the two concerns
+      // (dim under hotspot vs. highlight selected region) don't race.
       if (map.getLayer("sandy-fill")) {
         map.setPaintProperty(
           "sandy-fill",
           "fill-opacity",
-          [
-            "case",
-            ["==", ["get", "id"], selectedRegionId ?? -1],
-            0.55,
-            0.35,
-          ]
+          hotspotActive
+            ? 0.1
+            : [
+                "case",
+                ["==", ["get", "id"], selectedRegionId ?? -1],
+                0.55,
+                0.35,
+              ]
         );
       }
     };
@@ -398,30 +372,6 @@ export default function RegionMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !regions) return;
-
-    const hotspotActive =
-      layerMode === "hotspot" && hotspotGrid != null && hotspotGrid.features.length > 0;
-    if (hotspotActive) {
-      const bounds = new maplibregl.LngLatBounds();
-      for (const f of hotspotGrid.features) {
-        extendBoundsWithGeometry(bounds, f.geometry);
-      }
-      if (!bounds.isEmpty()) {
-        const animated = fittedRef.current;
-        fittedRef.current = true;
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            map.resize();
-            map.fitBounds(bounds, {
-              padding: 56,
-              duration: animated ? 700 : 0,
-            });
-          })
-        );
-        return;
-      }
-    }
-
     const subs = regions.features.filter(
       (f) => f.properties.level === "subregion"
     );
@@ -434,7 +384,13 @@ export default function RegionMap({
 
     const bounds = new maplibregl.LngLatBounds();
     for (const f of target) {
-      extendBoundsWithGeometry(bounds, f.geometry);
+      if (!f.geometry) continue;
+      const raw = f.geometry.coordinates as unknown as number[][][] | number[][][][];
+      const rings: number[][][] =
+        (f.geometry as unknown as { type: string }).type === "MultiPolygon"
+          ? (raw as number[][][][]).flat()
+          : (raw as number[][][]);
+      for (const c of rings.flat()) bounds.extend([c[0], c[1]]);
     }
     if (bounds.isEmpty()) return;
 
@@ -457,7 +413,7 @@ export default function RegionMap({
     // ...)` never fires again after the initial load — so the re-fit would be
     // dropped silently.
     requestAnimationFrame(() => requestAnimationFrame(doFit));
-  }, [regions, selectedRegionId, layerMode, hotspotGrid]);
+  }, [regions, selectedRegionId]);
 
   return (
     <div ref={containerRef} className="h-full w-full rounded-lg overflow-hidden" />
