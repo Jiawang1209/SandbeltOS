@@ -242,6 +242,126 @@ export async function fetchLandsatTileUrl(
   return res.json();
 }
 
+// ---------------- Phase 5: prediction + scenario ----------------
+
+export interface ForecastPoint {
+  date: string;
+  yhat: number;
+  yhat_lower: number;
+  yhat_upper: number;
+}
+
+export interface ForecastResponse {
+  region_id: number;
+  indicator: string;
+  model: "prophet";
+  fitted_on_n_points: number;
+  history_end: string;
+  horizon_steps: number;
+  freq: string;
+  points: ForecastPoint[];
+}
+
+export async function fetchNdviForecast(
+  regionId: number,
+  horizon: number = 12
+): Promise<ForecastResponse | null> {
+  const params = new URLSearchParams({
+    region_id: String(regionId),
+    horizon: String(horizon),
+  });
+  const res = await fetch(
+    `${API_BASE}/api/v1/prediction/ndvi-forecast?${params}`
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// Six species keys must stay in sync with backend `Species` literal.
+export type ScenarioSpecies =
+  | "poplar"
+  | "willow"
+  | "pine"
+  | "elm"
+  | "seabuckthorn"
+  | "caragana";
+
+export interface SpeciesOption {
+  key: ScenarioSpecies;
+  label_cn: string;
+  water_use_mm: number;
+}
+
+export interface ScenarioBaseline {
+  current_fvc: number;
+  current_soil_moisture: number;
+  annual_precip_mm: number;
+  avg_wind_speed_ms: number;
+}
+
+export interface ScenarioDefaultsResponse {
+  region_id: number;
+  baseline: ScenarioBaseline;
+  species_options: SpeciesOption[];
+}
+
+export interface YearlyProjection {
+  year: number;
+  fvc: number;
+  soil_moisture: number;
+  water_deficit_mm: number;
+  wind_erosion: number;
+  risk_level: number;
+  risk_label: string;
+  risk_score: number;
+  warning: string | null;
+}
+
+export interface ScenarioRequest {
+  region_id: number;
+  species: ScenarioSpecies;
+  additional_density_per_ha: number;
+  years: number;
+  // Optional overrides; omit to let server fill from regional baseline.
+  current_fvc?: number;
+  current_soil_moisture?: number;
+  annual_precip_mm?: number;
+  avg_wind_speed_ms?: number;
+}
+
+export interface ScenarioResponse {
+  region_id: number;
+  species: ScenarioSpecies;
+  species_label: string;
+  additional_density_per_ha: number;
+  years: number;
+  baseline_used: ScenarioBaseline;
+  yearly: YearlyProjection[];
+  recommendation: string;
+}
+
+export async function fetchScenarioDefaults(
+  regionId: number
+): Promise<ScenarioDefaultsResponse | null> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/prediction/scenario-defaults?region_id=${regionId}`
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function postScenario(
+  req: ScenarioRequest
+): Promise<ScenarioResponse | null> {
+  const res = await fetch(`${API_BASE}/api/v1/prediction/scenario`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export const RISK_LEVEL_LABELS: Record<number, string> = {
   1: "低风险",
   2: "中等风险",
