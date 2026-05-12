@@ -30,6 +30,8 @@ import TimeSlider from "@/components/TimeSlider";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import StatsBar from "@/components/StatsBar";
+import ScenarioPanel from "@/components/ScenarioPanel";
+import DemoDataBadge from "@/components/DemoDataBadge";
 import {
   fetchRegions,
   fetchTimeseries,
@@ -39,6 +41,7 @@ import {
   fetchNdviGrid,
   fetchNdviGridYears,
   fetchLandCover,
+  fetchNdviForecast,
   RISK_LEVEL_COLORS,
   RISK_LEVEL_LABELS,
   type RegionsGeoJSON,
@@ -49,6 +52,7 @@ import {
   type AlertRecord,
   type GridGeoJSON,
   type LandCoverYear,
+  type ForecastPoint,
 } from "@/lib/api";
 
 interface RegionData {
@@ -79,6 +83,9 @@ export default function DashboardPage() {
   const [compareAfterYear, setCompareAfterYear] = useState(2024);
   // Land-cover composition keyed by region id. Lazy-fetched per sandy land.
   const [landCover, setLandCover] = useState<Record<number, LandCoverYear[]>>({});
+  // NDVI forecast cached by region id — Prophet is server-side, results cached
+  // in Redis for 30 min so repeat clicks within a session don't re-fit.
+  const [forecastMap, setForecastMap] = useState<Record<number, ForecastPoint[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,6 +164,30 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [selectedId, landCover]);
+
+  // Fetch NDVI Prophet forecast on first selection. Half a year (12 × 16-day
+  // steps) is the default visualization horizon — long enough to be useful,
+  // short enough that the forecast hasn't drifted far from observed reality.
+  useEffect(() => {
+    if (selectedId == null || forecastMap[selectedId] != null) return;
+    let cancelled = false;
+    fetchNdviForecast(selectedId, 12)
+      .then((res) => {
+        if (cancelled) return;
+        setForecastMap((prev) => ({
+          ...prev,
+          [selectedId]: res?.points ?? [],
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setForecastMap((prev) => ({ ...prev, [selectedId]: [] }));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, forecastMap]);
 
   // Fetch the grid for (region, year) when hotspot mode is active. Snaps to
   // the nearest cached year since we only pre-computed a sparse set.
@@ -566,12 +597,23 @@ export default function DashboardPage() {
                 </ul>
               </section>
 
-              {/* NDVI/EVI chart */}
+              {/* NDVI/EVI chart — extended with Prophet forecast overlay when
+                  available. The "演示数据" badge sits in the card corner so the
+                  forecast line is never mistaken for measured data. */}
               <section
-                className="card-surface p-2"
+                className="card-surface relative p-2"
                 style={{ gridColumn: "span 6 / span 6", minHeight: 240 }}
               >
-                <NdviChart ndviData={current.ndvi} eviData={current.evi} />
+                <NdviChart
+                  ndviData={current.ndvi}
+                  eviData={current.evi}
+                  forecast={forecastMap[current.region.id]}
+                />
+                {(forecastMap[current.region.id]?.length ?? 0) > 0 && (
+                  <div className="absolute right-3 top-3 z-10">
+                    <DemoDataBadge />
+                  </div>
+                )}
               </section>
 
               {/* Weather chart */}
@@ -581,6 +623,13 @@ export default function DashboardPage() {
               >
                 <WeatherChart data={current.weather} />
               </section>
+
+              {/* Phase 5 — Scenario lab. Spans the full width so the chart has
+                  enough horizontal room for multi-year projections. */}
+              <ScenarioPanel
+                regionId={current.region.id}
+                style={{ gridColumn: "span 12 / span 12", minHeight: 360 }}
+              />
 
               {/* Land-cover composition — stacked area showing sand shrinking
                   as grass/shrub/forest layers build up over two decades. */}
