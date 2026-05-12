@@ -260,20 +260,23 @@ psql -U sandbelt -d sandbelt_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 | # | 任务 | 前置 | 验收标准 |
 |---|------|------|---------|
-| 5.1 | Prophet 基线预测：NDVI 未来 96 天（6 期） | Phase 1 数据 | 输出含 yhat + 置信区间 |
-| 5.2 | API：`GET /api/v1/prediction/ndvi-forecast` | 5.1 | curl 返回预测 JSON |
-| 5.3 | 前端：预测曲线（历史实线 + 预测虚线 + 置信区间） | 5.2, Phase 2 | 图表显示预测趋势 |
-| 5.4 | 情景分析函数：`scenario_analysis_afforestation` | Phase 3 指标函数 | 输出各年度生态指标变化 |
-| 5.5 | API：`POST /api/v1/prediction/scenario` | 5.4 | curl 返回情景分析 JSON |
-| 5.6 | 前端：情景分析交互面板（树种/密度/年限选择 → 结果图） | 5.5 | 用户调参数，图表实时更新 |
-| 5.7 | （可选）LSTM 训练：如有充足数据，训练深度预测模型 | 3 年+ 数据 | 预测精度优于 Prophet |
-| 5.8 | 测试：预测结果合理性验证 | 5.1, 5.4 | 预测值在合理范围内 |
+| 5.1 | Prophet 基线预测：NDVI 未来 96 天（默认 12 期 ≈ 半年，可调到 24） | Phase 1 数据 | 输出含 yhat + 置信区间 ✅ 2026-05-12 |
+| 5.2 | API：`GET /api/v1/prediction/ndvi-forecast` + Redis 缓存(30min) | 5.1 | curl 返回预测 JSON ✅ 2026-05-12 |
+| 5.3 | 前端：NDVI 图叠加预测虚线 + 浅绿置信带 + "演示数据"角标 | 5.2, Phase 2 | 图表显示预测趋势 ✅ 2026-05-12 |
+| 5.4 | 情景分析函数 `services/scenario.simulate`：6 种树种 × 密度 × 年限 | Phase 3 指标函数 | 输出各年度 FVC/SM/风险演化 ✅ 2026-05-12 |
+| 5.5 | API：`POST /api/v1/prediction/scenario` + `GET /scenario-defaults` | 5.4 | curl 返回情景分析 JSON ✅ 2026-05-12 |
+| 5.6 | 前端：`ScenarioPanel` 控件 + 多年趋势图 + 中文推荐文本 | 5.5 | 用户调参数，图表实时更新 ✅ 2026-05-12 |
+| 5.7 | ~~（可选）LSTM 训练~~ | — | 合成数据上没意义,已砍。真实 GEE 数据接入后再评估 |
+| 5.8 | 单测：`test_prediction.py` (5) + `test_scenario.py` (12) | 5.1, 5.4 | 17/17 单测通过 ✅ 2026-05-12 |
 
 ### Phase 5 完成标志
 
-- [ ] 前端显示 NDVI 预测曲线
-- [ ] 用户可选择树种和密度进行情景分析
-- [ ] 情景分析结果包含风险预警和建议
+- [x] 前端显示 NDVI 预测曲线 ✅ 2026-05-12
+- [x] 用户可选择树种和密度进行情景分析 ✅ 2026-05-12
+- [x] 情景分析结果包含风险预警和建议 ✅ 2026-05-12
+
+> **备注**：Phase 5 完整执行计划见 [`docs/superpowers/plans/2026-05-12-phase5-prediction-plan.md`](docs/superpowers/plans/2026-05-12-phase5-prediction-plan.md)。
+> 当前所有数据仍为合成数据,前端已统一标注"演示数据"角标;真实 GEE 数据接入后需重跑 Phase 1 并重新校准 Prophet 与情景模型常数。
 
 ---
 

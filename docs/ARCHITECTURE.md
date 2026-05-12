@@ -610,7 +610,16 @@ def assess_desertification_risk(
 
 ## 8. 预测服务
 
-> 对应文件：`backend/app/services/prediction_service.py`
+> **实际落地文件（Phase 5 已完成,2026-05-12）：**
+> - `backend/app/services/prediction.py` — Prophet NDVI 预测,带 Redis 缓存
+> - `backend/app/services/scenario.py` — 造林情景模拟
+> - `backend/app/api/v1/prediction.py` — `GET /ndvi-forecast` · `POST /scenario` · `GET /scenario-defaults`
+> - 风险评估调用 `app.services.indicators.assess_risk`（**注意**: 不是下方代码示例里的旧名 `assess_desertification_risk`）
+>
+> 下方的代码模板保留作为初版设计参考,常数表已被 `scenario.py` 内部的 `SPECIES_WATER_USE_MM` 取代。
+> 完整设计见 [`docs/superpowers/plans/2026-05-12-phase5-prediction-plan.md`](superpowers/plans/2026-05-12-phase5-prediction-plan.md)。
+
+> 对应文件（设计稿,非实际路径）：`backend/app/services/prediction_service.py`
 
 ```python
 import torch
