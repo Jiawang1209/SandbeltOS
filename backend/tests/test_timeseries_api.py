@@ -85,5 +85,6 @@ async def test_regions_endpoint(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["regions"]) > 0
-    assert data["regions"][0]["name"] == "科尔沁沙地"
+    assert data["type"] == "FeatureCollection"
+    assert len(data["features"]) > 0
+    assert data["features"][0]["properties"]["name"] == "科尔沁沙地"

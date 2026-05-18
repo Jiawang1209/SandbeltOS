@@ -164,6 +164,8 @@ async def forecast_indicator(
     df = pd.DataFrame(
         [{"ds": pd.to_datetime(r["time"]), "y": r["value"]} for r in rows]
     )
+    # Prophet 1.3+ rejects timezone-aware ds; normalize to naive UTC.
+    df["ds"] = pd.to_datetime(df["ds"], utc=True).dt.tz_localize(None)
 
     points = forecast_series(df, horizon_steps, freq=freq)
     result = ForecastResult(
