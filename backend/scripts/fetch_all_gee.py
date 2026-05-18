@@ -38,6 +38,7 @@ def init_gee() -> None:
 # ---------------------------------------------------------------------------
 
 def fetch_ndvi_year(bbox: list[float], year: int) -> list[dict]:
+    """Serial per-image NDVI+EVI fetch (one reduceRegion per image)."""
     roi = ee.Geometry.Rectangle(bbox)
     col = (
         ee.ImageCollection("MODIS/061/MOD13A1")
@@ -46,33 +47,46 @@ def fetch_ndvi_year(bbox: list[float], year: int) -> list[dict]:
         .select(["NDVI", "EVI"])
     )
 
-    def extract(image: ee.Image) -> ee.Feature:
-        d = image.date().format("YYYY-MM-dd")
-        ndvi = image.select("NDVI").multiply(0.0001)
-        evi = image.select("EVI").multiply(0.0001)
-        ns = ndvi.reduceRegion(
-            reducer=ee.Reducer.mean()
-            .combine(ee.Reducer.min(), sharedInputs=True)
-            .combine(ee.Reducer.max(), sharedInputs=True),
-            geometry=roi, scale=500, maxPixels=1e13,
-        )
-        es = evi.reduceRegion(
-            reducer=ee.Reducer.mean(), geometry=roi, scale=500, maxPixels=1e13,
-        )
-        return ee.Feature(None, ns.combine(es).set("date", d))
+    try:
+        dates = col.aggregate_array("system:time_start").getInfo()
+    except Exception as e:
+        print(f"    NDVI {year}: list FAILED ({e})", flush=True)
+        return []
 
-    return _fetch_with_retry(col, extract, year, "NDVI/EVI", _parse_ndvi)
-
-
-def _parse_ndvi(feat: dict) -> dict:
-    p = feat["properties"]
-    return {
-        "time": pd.Timestamp(p["date"], tz="UTC"),
-        "ndvi_mean": p.get("NDVI_mean"),
-        "ndvi_min": p.get("NDVI_min"),
-        "ndvi_max": p.get("NDVI_max"),
-        "evi_mean": p.get("EVI_mean"),
-    }
+    rows: list[dict] = []
+    suffix_reducer = (
+        ee.Reducer.mean()
+        .combine(ee.Reducer.min(), sharedInputs=True)
+        .combine(ee.Reducer.max(), sharedInputs=True)
+    )
+    for ts_ms in dates:
+        date_str = pd.Timestamp(ts_ms, unit="ms", tz="UTC").strftime("%Y-%m-%d")
+        for attempt in range(4):
+            try:
+                img = col.filter(ee.Filter.eq("system:time_start", ts_ms)).first()
+                ndvi = img.select("NDVI").multiply(0.0001)
+                evi = img.select("EVI").multiply(0.0001)
+                ns = ndvi.reduceRegion(
+                    reducer=suffix_reducer, geometry=roi, scale=500, maxPixels=1e13
+                )
+                es = evi.reduceRegion(
+                    reducer=suffix_reducer, geometry=roi, scale=500, maxPixels=1e13
+                )
+                props = ns.combine(es).getInfo()
+                rows.append({
+                    "time": pd.Timestamp(date_str, tz="UTC"),
+                    "ndvi_mean": props.get("NDVI_mean"),
+                    "ndvi_min": props.get("NDVI_min"),
+                    "ndvi_max": props.get("NDVI_max"),
+                    "evi_mean": props.get("EVI_mean"),
+                })
+                break
+            except Exception as e:
+                wait = 5 * (attempt + 1)
+                print(f"    NDVI {date_str}: {str(e)[:60]} — retry in {wait}s", flush=True)
+                time.sleep(wait)
+        time.sleep(0.4)
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +94,7 @@ def _parse_ndvi(feat: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def fetch_lst_year(bbox: list[float], year: int) -> list[dict]:
+    """Serial per-image LST fetch."""
     roi = ee.Geometry.Rectangle(bbox)
     col = (
         ee.ImageCollection("MODIS/061/MOD11A2")
@@ -88,27 +103,40 @@ def fetch_lst_year(bbox: list[float], year: int) -> list[dict]:
         .select(["LST_Day_1km"])
     )
 
-    def extract(image: ee.Image) -> ee.Feature:
-        lst_c = image.select("LST_Day_1km").multiply(0.02).subtract(273.15)
-        stats = lst_c.reduceRegion(
-            reducer=ee.Reducer.mean()
-            .combine(ee.Reducer.min(), sharedInputs=True)
-            .combine(ee.Reducer.max(), sharedInputs=True),
-            geometry=roi, scale=1000, maxPixels=1e13,
-        )
-        return ee.Feature(None, stats.set("date", image.date().format("YYYY-MM-dd")))
+    try:
+        dates = col.aggregate_array("system:time_start").getInfo()
+    except Exception as e:
+        print(f"    LST {year}: list FAILED ({e})", flush=True)
+        return []
 
-    return _fetch_with_retry(col, extract, year, "LST", _parse_lst)
-
-
-def _parse_lst(feat: dict) -> dict:
-    p = feat["properties"]
-    return {
-        "time": pd.Timestamp(p["date"], tz="UTC"),
-        "lst_mean": p.get("LST_Day_1km_mean"),
-        "lst_min": p.get("LST_Day_1km_min"),
-        "lst_max": p.get("LST_Day_1km_max"),
-    }
+    rows: list[dict] = []
+    suffix_reducer = (
+        ee.Reducer.mean()
+        .combine(ee.Reducer.min(), sharedInputs=True)
+        .combine(ee.Reducer.max(), sharedInputs=True)
+    )
+    for ts_ms in dates:
+        date_str = pd.Timestamp(ts_ms, unit="ms", tz="UTC").strftime("%Y-%m-%d")
+        for attempt in range(4):
+            try:
+                img = col.filter(ee.Filter.eq("system:time_start", ts_ms)).first()
+                lst_c = img.select("LST_Day_1km").multiply(0.02).subtract(273.15)
+                stats = lst_c.reduceRegion(
+                    reducer=suffix_reducer, geometry=roi, scale=1000, maxPixels=1e13
+                ).getInfo()
+                rows.append({
+                    "time": pd.Timestamp(date_str, tz="UTC"),
+                    "lst_mean": stats.get("LST_Day_1km_mean"),
+                    "lst_min": stats.get("LST_Day_1km_min"),
+                    "lst_max": stats.get("LST_Day_1km_max"),
+                })
+                break
+            except Exception as e:
+                wait = 5 * (attempt + 1)
+                print(f"    LST {date_str}: {str(e)[:60]} — retry in {wait}s", flush=True)
+                time.sleep(wait)
+        time.sleep(0.4)
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -154,30 +182,6 @@ def fetch_smap_year(bbox: list[float], year: int) -> list[dict]:
             pass  # skip months with no data
 
     return rows
-
-
-# ---------------------------------------------------------------------------
-# Retry wrapper
-# ---------------------------------------------------------------------------
-
-def _fetch_with_retry(
-    collection: ee.ImageCollection,
-    extract_fn,
-    year: int,
-    label: str,
-    parse_fn,
-    max_attempts: int = 5,
-) -> list[dict]:
-    for attempt in range(max_attempts):
-        try:
-            result = collection.map(extract_fn).getInfo()
-            return [parse_fn(f) for f in result["features"]]
-        except Exception as e:
-            wait = 15 * (attempt + 1)
-            print(f"    {label} {year}: retry {attempt + 1}/{max_attempts} "
-                  f"in {wait}s ({e})", flush=True)
-            time.sleep(wait)
-    return []
 
 
 # ---------------------------------------------------------------------------
