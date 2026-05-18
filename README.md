@@ -176,7 +176,41 @@ createdb -U sandbelt sandbelt_db
 psql -U sandbelt -d sandbelt_db -f backend/sql/init.sql
 ```
 
-### 5. 启动
+> **已有部署补丁（2026-05 之前建的库）**：早期 `init.sql` 缺 `regions.bbox_json` 列，会导致 `/api/v1/gis/regions` 报 `UndefinedColumnError`。最新 `init.sql` 已自带 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS bbox_json JSONB;`，重跑一次即可；或手动:
+> ```bash
+> psql -U sandbelt -d sandbelt_db -c "ALTER TABLE regions ADD COLUMN IF NOT EXISTS bbox_json JSONB;"
+> ```
+
+### 5. 导入沙地边界几何（**必需**，否则地图无多边形可绘）
+
+`init.sql` 只建表结构、不填几何。需要运行 seed 脚本把科尔沁 / 浑善达克的沙地多边形写入 `regions.bbox_json`。
+
+```bash
+cd backend
+PYTHONPATH=. python scripts/seed_osm_sandy.py
+```
+
+脚本从 **OpenStreetMap Overpass API** 拉 `natural=sand` 多边形，依次尝试三个镜像（`overpass-api.de` → `kumi.systems` → `openstreetmap.fr`），首个可用即停。结果缓存在 `/tmp/osm_sand/`。
+
+校验：
+```bash
+psql -U sandbelt -d sandbelt_db -c \
+  "SELECT id, name, bbox_json->>'type' AS geom_type, area_km2 FROM regions WHERE id IN (1,2);"
+```
+应该输出 `MultiPolygon` 几何 + 合理面积（科尔沁 ~50,600 km²、浑善达克 ~21,400 km²）。
+
+**降级方案**（外网受限、Overpass 三镜像都打不通时）：直接写入粗矩形 bbox，让地图先有显示，等以后网络好时再回来跑 OSM 脚本替换：
+
+```bash
+psql -U sandbelt -d sandbelt_db <<'SQL'
+UPDATE regions SET bbox_json = '{"type":"Polygon","coordinates":[[[118.0,42.0],[123.0,42.0],[123.0,44.0],[118.0,44.0],[118.0,42.0]]]}'::jsonb WHERE id = 1;
+UPDATE regions SET bbox_json = '{"type":"Polygon","coordinates":[[[113.0,41.5],[117.5,41.5],[117.5,43.5],[113.0,43.5],[113.0,41.5]]]}'::jsonb WHERE id = 2;
+SQL
+```
+
+> Phase 5 的 NDVI 预测 / 造林情景接口**不依赖** `bbox_json`，只读 `eco_indicators` 和 `weather_data`。即使跳过这一步，`/api/v1/prediction/*` 也能直接 curl 验证。
+
+### 6. 启动
 
 ```bash
 # 终端 1：后端
@@ -323,7 +357,7 @@ bash deploy.sh
 - ✅ Phase 2 · 基础可视化
 - 🟡 Phase 3 · 生态评估引擎
 - 🟡 Phase 4 · RAG 问答
-- ⏳ Phase 5 · 预测 + 情景分析
+- ✅ Phase 5 · 预测 + 情景分析（Prophet NDVI 12 期预测 + 6 树种造林情景模拟）
 
 ---
 

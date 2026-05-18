@@ -26,7 +26,20 @@ from sqlalchemy import text
 
 from app.database import async_session as AsyncSessionLocal
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# Multiple mirrors — the main endpoint regularly returns 406 / 429 / 502.
+# Try them in order; first one that responds wins.
+OVERPASS_MIRRORS = (
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.fr/api/interpreter",
+)
+
+# Overpass rejects requests without a real User-Agent. Identify ourselves so
+# operators can throttle politely instead of blanket-blocking.
+HTTP_HEADERS = {
+    "User-Agent": "SandbeltOS/0.1 (three-north shelterbelt research; +https://github.com/yueliu/SandbeltOS)",
+    "Accept": "application/json",
+}
 
 # Generous bbox per region — OSM polygons are clipped to actual sand extent.
 HORQIN_BBOX = (118.0, 42.0, 123.0, 44.0)   # (minLng, minLat, maxLng, maxLat)
@@ -37,6 +50,13 @@ CACHE_DIR.mkdir(exist_ok=True)
 
 
 def overpass_query(bbox: tuple[float, float, float, float]) -> dict:
+    """Query Overpass for natural=sand polygons within bbox.
+
+    Tries each mirror with a proper User-Agent. Sends the query as raw
+    text/plain in the body (form-encoded payloads sometimes trigger 406
+    from the main interpreter). Falls through to the next mirror on
+    HTTP error and raises only after exhausting all of them.
+    """
     minlng, minlat, maxlng, maxlat = bbox
     q = f"""
 [out:json][timeout:120];
@@ -46,9 +66,25 @@ def overpass_query(bbox: tuple[float, float, float, float]) -> dict:
 );
 out geom;
 """.strip()
-    r = requests.post(OVERPASS_URL, data={"data": q}, timeout=180)
-    r.raise_for_status()
-    return r.json()
+
+    last_error: Exception | None = None
+    for url in OVERPASS_MIRRORS:
+        try:
+            r = requests.post(
+                url,
+                data=q.encode("utf-8"),
+                headers={**HTTP_HEADERS, "Content-Type": "text/plain; charset=utf-8"},
+                timeout=180,
+            )
+            r.raise_for_status()
+            return r.json()
+        except requests.RequestException as e:
+            print(f"  mirror failed ({url}): {e}")
+            last_error = e
+            continue
+
+    assert last_error is not None
+    raise last_error
 
 
 def way_to_polygon(way: dict) -> Polygon | None:

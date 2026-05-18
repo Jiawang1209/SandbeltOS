@@ -5,14 +5,21 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- 区域信息表（矢量）
+-- bbox_json: GIS 接口（gis.get_regions）和 seed 脚本
+--   (seed_osm_sandy / seed_admin_polygons / extract_sandy_boundary / fetch_landcover 等)
+-- 实际读写的几何字段，以 GeoJSON Polygon/MultiPolygon 存储。
+-- geom 列保留以备 PostGIS 空间查询使用。
 CREATE TABLE IF NOT EXISTS regions (
     id          SERIAL PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
     level       VARCHAR(20),
     geom        GEOMETRY(MULTIPOLYGON, 4326),
+    bbox_json   JSONB,
     area_km2    FLOAT,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+-- 已有部署（2026-04 之前建的库）缺这列时用以下 ALTER 补齐：
+ALTER TABLE regions ADD COLUMN IF NOT EXISTS bbox_json JSONB;
 CREATE INDEX IF NOT EXISTS idx_regions_geom ON regions USING GIST(geom);
 
 -- 生态指标时序表（超表）
