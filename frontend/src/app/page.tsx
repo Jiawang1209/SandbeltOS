@@ -34,21 +34,13 @@ export default function Home() {
             <div className="font-medium text-green-800">生态仪表盘</div>
             <div className="mt-1 text-green-600">Phase 2 ✓</div>
           </div>
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="font-medium text-zinc-900 dark:text-zinc-100">
-              RAG 问答
-            </div>
-            <div className="mt-1 text-zinc-500 dark:text-zinc-400">
-              Phase 4
-            </div>
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="font-medium text-green-800">RAG 问答</div>
+            <div className="mt-1 text-green-600">Phase 4 ✓</div>
           </div>
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="font-medium text-zinc-900 dark:text-zinc-100">
-              预测分析
-            </div>
-            <div className="mt-1 text-zinc-500 dark:text-zinc-400">
-              Phase 5
-            </div>
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="font-medium text-green-800">预测分析</div>
+            <div className="mt-1 text-green-600">Phase 5 ✓</div>
           </div>
         </div>
       </main>

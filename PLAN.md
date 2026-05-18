@@ -209,9 +209,11 @@ psql -U sandbelt -d sandbelt_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 ### Phase 3 完成标志
 
-- [ ] 仪表盘显示指标卡和预警
-- [ ] 地图能切换 NDVI/风险 两个图层
-- [ ] Prefect 定时任务在跑
+- [x] 仪表盘显示指标卡和预警 ✅ 2026-05-18（1.3 walkthrough：4 个指标卡 NDVI / FVC / 碳密度 / 沙化风险 + 红色"极高风险预警"banner 均在）
+- [x] 地图能切换 NDVI/风险 两个图层 ✅ 2026-05-18（"植被覆盖 / 沙化风险 / 像素热点" 三按钮切换正常）
+- [ ] Prefect 定时任务在跑（**仍缺**：Prefect 进程未起，flow 没注册到调度器；数据接入真实 GEE/ERA5 后再做）
+
+> 完成度盘点详见 [`docs/test-status.md`](docs/test-status.md) §三。
 
 ---
 
@@ -246,9 +248,11 @@ psql -U sandbelt -d sandbelt_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 ### Phase 4 完成标志
 
-- [ ] 问答页面能流式显示回答
-- [ ] 回答中包含实时数据引用 + 文献引用
-- [ ] 5 类测试问题回答质量通过人工审核
+- [x] 问答页面能流式显示回答 ✅ 2026-05-18（SSE 打字机效果 + 6 个预设快捷问题分 3 组）
+- [x] 回答中包含实时数据引用 + 文献引用 ✅ 2026-05-18（右侧 5 条 PDF 引用 + page + score；左下实时指标面板 NDVI/FVC/风险/风速/土壤）
+- [ ] 5 类测试问题回答质量通过人工审核（**仍缺**：当前 `.env` 指向的 uni-api `qwen3:235b` 已下线，需切到可用 LLM endpoint 才能跑人工质量评估）
+
+> 完成度盘点详见 [`docs/test-status.md`](docs/test-status.md) §三。
 
 ---
 

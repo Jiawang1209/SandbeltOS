@@ -65,14 +65,44 @@
 
 ---
 
-## 四、文档漂移（应顺手修）
+## 四、文档漂移与数据校准（已修）
 
-| 位置 | 现状 | 应改 |
+### 4.1 文档/UI 漂移
+
+| 位置 | 现状 → 应改 | 状态 |
 |---|---|---|
-| `frontend/.../SiteFooter`（页脚） | "Ver. Phase 4 · RAG-powered Copilot" | "Ver. Phase 5 · Prediction & Scenario" 或不再标版本 |
-| `chat` 右侧栏实时指标 | FVC 显示 `null%` | 后端 FVC 缺值时前端应渲染 "—" 或隐藏 |
-| `README.md` 步骤 4 | 提示 `conda install ... redis-server` | 在 macOS 上 `conda-forge::redis-server` 装不到，README 应指引 `brew install redis` 或 `conda install -c conda-forge redis` |
-| `README.md` 步骤 4 | 建议 conda PostgreSQL | 实际跑的是 Homebrew Postgres 16，README 应给两种路径 |
+| `SiteFooter` | "Ver. Phase 4 · RAG-powered Copilot" → "Ver. Phase 5 · Prediction & Scenario" | ✅ 已修 |
+| `app/page.tsx` 卡片 | RAG/预测分析 显示 "Phase 4" / "Phase 5"（无 ✓） → 加 ✓ + 绿色样式 | ✅ 已修 |
+| `chat/MetricsPanel` | FVC `null%` / soil_moisture `0.1171%`（漏 ×100） → null 显 "—"，fraction ×100 显 "11.7%" | ✅ 已修 |
+| `chat-types.ts` `Metrics` | `fvc: number` → `fvc: number \| null`（同步 ndvi/wind/soil） | ✅ 已修 |
+| `README.md` 步骤 2 | 提示 conda 装 `redis-server` → macOS 改 brew，加 fallback；提示 pip install 装 prophet | ✅ 已修 |
+| `README.md` 步骤 4 | 单 conda PG 路径 → 拆 A/B：conda PG 与 brew PG16 | ✅ 已修 |
+| `README.md` 常见排错 | 缺 Clash 代理 / LLM 下线 / Prophet 缺失 的处置 → 加 3 行 | ✅ 已修 |
+
+### 4.2 沙地面积数据校准（**重要发现**）
+
+**起因**：演示中发现顶部 KPI "监测面积 24,143 km²" 与公开统计严重不符。
+
+**真相**：
+
+| 沙地 | 公开真实面积 | 公开经纬度范围 | A 前 DB | bbox(A 前) |
+|---|---|---|---|---|
+| 科尔沁 | 5.06–6.63 万 km²（百度/维基） | 41.7°–47.65°N, 116.36°–126.25°E | 2,742 km²（OSM 真实多边形） | 42–44°N, 118–123°E（**只覆盖真实范围 1/3**） |
+| 浑善达克 | 2.38–3.84 万 km²（不同口径） | 锡林郭勒南端, 东西长 ~450 km | 21,400 km²（**历史 fallback 写死**） | 41.5–43.5°N, 113–117.5°E（4.5°×2° ≈ 410km 临界） |
+
+**根因双重叠加**：
+1. Bbox 太小（科尔沁尤其）—— Overpass 搜索范围圈不全
+2. OSM 中国境内 `natural=sand` tag **极稀疏**（实测覆盖率 1–5%）—— 即便 bbox 扩到真实范围也只能拉到 2,734 km²（科尔沁）/ 263 km²（浑善达克）
+
+**A 方案（扩 bbox）单独无效**：扩到 (116, 41.5, 126.5, 47.7) 后科尔沁多边形数 N→306 但总面积 2,742→2,734（持平）；浑善达克更糟（21,400 写死值 → 263 真实 OSM 覆盖）。
+
+**B 方案（已实施）**：seed 脚本检测到 OSM 覆盖率 < 50% 时，几何保留 OSM 真实多边形（范围对、形状散落），但 `area_km2` 改写为权威值：
+- 科尔沁 50,600 km²（百度百科 / 《中国八大沙漠四大沙地》2024）
+- 浑善达克 23,800 km²（维基百科保守口径）
+
+修复后 KPI 显示 **74,400 km²**（截图 [`01_dashboard_combined.png`](demos/01_dashboard_combined.png)）。
+
+**C 方案（路线图 2️⃣ 时一并做）**：接 NESDC 官方"中国沙化土地分布"矢量数据替换 OSM 多边形，几何 + 面积全权威。
 
 ---
 

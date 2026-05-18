@@ -34,8 +34,8 @@ export function MetricsPanel({ metrics }: Props) {
       </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12.5px]">
-        <Metric label="NDVI" value={metrics.ndvi?.toFixed(2)} />
-        <Metric label="FVC" value={`${metrics.fvc}%`} />
+        <Metric label="NDVI" value={fmt(metrics.ndvi, (v) => v.toFixed(2))} />
+        <Metric label="FVC" value={fmtPercent(metrics.fvc)} />
         <Metric
           label="风险等级"
           value={
@@ -44,10 +44,13 @@ export function MetricsPanel({ metrics }: Props) {
             </span>
           }
         />
-        <Metric label="风速" value={`${metrics.wind_speed?.toFixed(1)} m/s`} />
+        <Metric
+          label="风速"
+          value={fmt(metrics.wind_speed, (v) => `${v.toFixed(1)} m/s`)}
+        />
         <Metric
           label="土壤湿度"
-          value={`${metrics.soil_moisture}%`}
+          value={fmtPercent(metrics.soil_moisture)}
           span={2}
         />
       </dl>
@@ -67,6 +70,17 @@ export function MetricsPanel({ metrics }: Props) {
       )}
     </div>
   );
+}
+
+// Backend may send null when a metric is missing (sparse sensor data,
+// LST gap, etc.) — render "—" instead of "null%".
+function fmt<T>(v: T | null | undefined, render: (v: T) => string): string {
+  return v == null ? "—" : render(v);
+}
+
+// 0–1 fraction → percent string. ESA WorldCover / SMAP both report fractions.
+function fmtPercent(v: number | null | undefined): string {
+  return v == null ? "—" : `${(v * 100).toFixed(1)}%`;
 }
 
 function Metric({

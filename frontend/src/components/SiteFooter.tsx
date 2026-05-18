@@ -56,7 +56,7 @@ export default function SiteFooter() {
             © {new Date().getFullYear()} SandbeltOS · 保留所有权利
           </span>
           <span className="tracking-[0.1em]">
-            Ver. Phase 4 · RAG-powered Copilot
+            Ver. Phase 5 · Prediction & Scenario
           </span>
         </div>
       </div>

@@ -42,8 +42,14 @@ HTTP_HEADERS = {
 }
 
 # Generous bbox per region — OSM polygons are clipped to actual sand extent.
-HORQIN_BBOX = (118.0, 42.0, 123.0, 44.0)   # (minLng, minLat, maxLng, maxLat)
-OTINDAG_BBOX = (113.0, 41.5, 117.5, 43.5)
+# Bbox is the *search envelope*, not the result; Overpass only returns
+# natural=sand polygons that fall inside it.
+#
+# Authoritative ranges per 中国八大沙漠四大沙地 / Wikipedia / 百科:
+#   科尔沁:   41°41′–47°39′N, 116°21′–126°14′E  (≈5.06–6.63 万 km²)
+#   浑善达克: 锡林郭勒南端, 东西长 ~450 km        (≈2.38–3.84 万 km²)
+HORQIN_BBOX = (116.0, 41.5, 126.5, 47.7)   # (minLng, minLat, maxLng, maxLat)
+OTINDAG_BBOX = (111.5, 41.0, 118.5, 44.0)
 
 CACHE_DIR = Path("/tmp/osm_sand")
 CACHE_DIR.mkdir(exist_ok=True)
@@ -178,10 +184,21 @@ def to_multipolygon_geojson(geom: MultiPolygon) -> dict:
 
 
 async def main() -> None:
+    # Authoritative area_km2 values from Wikipedia / 百度百科 /
+    #   "中国八大沙漠四大沙地" (中国水土保持学会, 2024).
+    # OSM `natural=sand` tag is sparsely populated in China — measured
+    # area typically <10% of reality. When that's the case we keep the
+    # OSM geometry (range is correct even if polygons are scattered)
+    # but write the authoritative number to area_km2 so headline KPIs
+    # don't lie to demo viewers. See test-status.md §四 for full context.
     targets = [
         (1, "科尔沁沙地", HORQIN_BBOX, "horqin", 50_600),
-        (2, "浑善达克沙地", OTINDAG_BBOX, "otindag", 21_400),
+        (2, "浑善达克沙地", OTINDAG_BBOX, "otindag", 23_800),
     ]
+
+    # If OSM-measured area is below this fraction of expected, we trust
+    # the authoritative figure instead. Today both regions sit ~0.01–0.05x.
+    AUTH_OVERRIDE_THRESHOLD = 0.5
 
     results: dict[int, tuple[dict, float]] = {}
 
@@ -200,11 +217,20 @@ async def main() -> None:
         if isinstance(simplified, Polygon):
             simplified = MultiPolygon([simplified])
 
-        km2 = area_km2(simplified)
+        osm_km2 = area_km2(simplified)
         n = len(simplified.geoms) if not simplified.is_empty else 0
-        print(f"  polygons: {n}, area: {km2:,.0f} km² "
-              f"(expected ~{expected_km2:,} km², ratio={km2/expected_km2:.2f}x)")
-        results[region_id] = (to_multipolygon_geojson(simplified), km2)
+        ratio = osm_km2 / expected_km2 if expected_km2 else 0.0
+        print(f"  polygons: {n}, OSM area: {osm_km2:,.0f} km² "
+              f"(expected ~{expected_km2:,} km², ratio={ratio:.2f}x)")
+
+        if ratio < AUTH_OVERRIDE_THRESHOLD:
+            print(f"  ⚠ OSM coverage {ratio:.0%} < {AUTH_OVERRIDE_THRESHOLD:.0%} — "
+                  f"writing authoritative {expected_km2:,} km² instead of {osm_km2:,.0f}")
+            written_km2 = float(expected_km2)
+        else:
+            written_km2 = osm_km2
+
+        results[region_id] = (to_multipolygon_geojson(simplified), written_km2)
 
     async with AsyncSessionLocal() as session:
         for region_id, (gj, km2) in results.items():

@@ -11,11 +11,11 @@ export interface Source {
 export interface Metrics {
   region: string;
   timestamp: string;
-  ndvi: number;
-  fvc: number;
+  ndvi: number | null;
+  fvc: number | null;
   risk_level: number;
-  wind_speed: number;
-  soil_moisture: number;
+  wind_speed: number | null;
+  soil_moisture: number | null;
   last_alert:
     | { level: number; message: string; timestamp: string }
     | null;

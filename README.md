@@ -221,7 +221,9 @@ PYTHONPATH=. python scripts/seed_osm_sandy.py
 psql -U sandbelt -d sandbelt_db -c \
   "SELECT id, name, bbox_json->>'type' AS geom_type, area_km2 FROM regions WHERE id IN (1,2);"
 ```
-应该输出 `MultiPolygon` 几何 + 合理面积（科尔沁 ~50,600 km²、浑善达克 ~21,400 km²）。
+应该输出 `MultiPolygon` 几何 + 权威面积（科尔沁 50,600 km²、浑善达克 23,800 km²）。
+
+> **面积口径说明**：OSM 中国境内 `natural=sand` tag 极稀疏（实测覆盖率约 1–5%）。seed 脚本检测到这种情况时，**几何保留 OSM 真实多边形**（范围对、形状散落），**`area_km2` 改写为官方权威值**（百度百科 / 维基 / 中国水土保持学会"中国八大沙漠四大沙地"2024 年统计）。这是临时口径；路线图 2️⃣ 接 NESDC 官方"中国沙化土地分布"边界后会一并替换。详见 [`docs/test-status.md`](docs/test-status.md) §四。
 
 **降级方案**（外网受限、Overpass 三镜像都打不通时）：直接写入粗矩形 bbox，让地图先有显示，等以后网络好时再回来跑 OSM 脚本替换：
 
