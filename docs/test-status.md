@@ -139,4 +139,36 @@ A docs/demos/05_landsat_swipe_loaded.png  # 对比 + Landsat 加载中
 
 ---
 
+## 七、里程碑 2️⃣ 真实 GEE 数据接入 · 首批落地（2026-05-18 续）
+
+| 子项 | 状态 | 结果 |
+|---|---|---|
+| MODIS NDVI/EVI 真实数据替换 (2020-2024, 16-day) | ✅ | 4 组 × 115 行 `MODIS_GEE`,科尔沁 NDVI mean 0.33 / 浑善达克 0.18 |
+| 真实沙地边界提取(MODIS NDVI<0.48,生长季均值) | ✅ | 科尔沁 1 矩形 → 265 多边形,浑善达克 1 → 46;`area_km2` 保持权威覆盖(50,600 / 23,800) |
+| pytest 套件回归 | ✅ | 118/118 通过 (~57 s),与里程碑 1️⃣ 一致 |
+| API 端到端 (`/gis/regions` + `/ecological/timeseries`) | ✅ | FeatureCollection 返回正确;timeseries `source` 字段已是 `MODIS_GEE` |
+| ERA5 weather_data | 已经是真实 | 5 年 × 2 区域 × 1827 日,无需补 |
+
+### 关键修复
+
+| Bug | 现象 | 修复 (commit) |
+|---|---|---|
+| GEE `Too many concurrent aggregations` | `collection.map(reducer).getInfo()` 一次性发起整年并发聚合,5×3×2=30 次重试全失败,删完合成数据后 0 行入库 | 改为 `aggregate_array('system:time_start')` 一次列日期 + 逐图串行 `reduceRegion` + 0.4s 节流 (`3ea80d0`) |
+| EVI 入库 0 行 | EVI reducer 用裸 `mean()`,EE 返回键 `EVI` 而非 `EVI_mean`,parser 拿 None 跳过 | EVI reducer 改 `mean.combine(min).combine(max)` 强制后缀 (`3ea80d0`) |
+| 重跑产生重复 | `eco_indicators` 无 UNIQUE 约束,`ON CONFLICT DO NOTHING` 失效 | DELETE 同时清 `MODIS_synthetic` + `MODIS_GEE` (`3ea80d0`) |
+
+### 安全回退
+
+- 备份表 `regions_bbox_backup_20260518` 保留 bbox 矩形原值,如真实多边形渲染异常可一键回退:
+  `UPDATE regions r SET bbox_json = b.bbox_json FROM regions_bbox_backup_20260518 b WHERE r.id = b.id;`
+
+### 剩余 milestone 2️⃣ 工作
+
+- [ ] `fetch_all_gee.py` 同步打 GEE 串行补丁,跑 LST + SMAP (2000-2026)
+- [ ] NDVI/EVI 历史延伸到 2000-2019 (~20 年 × 23 张 × 2 区域 ≈ 30-40 分钟)
+- [ ] 评估是否真要替换为 NESDC 官方矢量(当前 MODIS-derived 已退役 bbox)
+
+---
+
 *版本：v1 | 拟稿日期：2026-05-18 | 基线 commit：e6a75c8 + 本次修复*
+*版本：v2 | 续修日期：2026-05-18 | 新增 commit：`3ea80d0` + 数据态变更(无代码 diff)*
