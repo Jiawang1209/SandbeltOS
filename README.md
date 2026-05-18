@@ -148,16 +148,27 @@ SandbeltOS/
 conda create -n sandbelt python=3.11 -y
 conda activate sandbelt
 conda install -c conda-forge \
-    postgresql=16 postgis redis-server \
+    postgresql=16 postgis \
     gdal rasterio geopandas shapely fiona pyproj \
     nodejs=20 -y
 
-# Python 依赖
+# Redis：conda-forge 在 macOS 上没有 redis-server 包，用 brew
+#   macOS:  brew install redis
+#   Linux:  conda install -c conda-forge redis-server
+brew install redis 2>/dev/null || conda install -c conda-forge redis-server -y
+
+# Python 依赖（含 prophet、redis 客户端等所有运行期依赖，跑了这一步前端预测/缓存才能用）
 cd backend && pip install -r requirements.txt && cd ..
 
 # 前端依赖
 cd frontend && npm ci && cd ..
 ```
+
+> **如果机器开了系统级 HTTP 代理**（Clash / Surge / V2Ray 等），代理通常 SSL 拦截 `*.googleapis.com`，会导致后端调 GEE OAuth 报 `SSLEOFError` 而 502/500。启后端前先 unset：
+> ```bash
+> unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy
+> ```
+> 或在代理工具里把 `*.googleapis.com` / `*.earthengine.com` 加 DIRECT 例外。
 
 ### 3. 配置环境变量
 
@@ -168,6 +179,8 @@ cp .env.example .env
 
 ### 4. 初始化数据库
 
+**路径 A：conda 自管 PostgreSQL**
+
 ```bash
 conda activate sandbelt
 initdb -D $CONDA_PREFIX/var/postgresql -U sandbelt --pwprompt
@@ -175,6 +188,17 @@ pg_ctl -D $CONDA_PREFIX/var/postgresql -l $CONDA_PREFIX/var/postgresql/logfile s
 createdb -U sandbelt sandbelt_db
 psql -U sandbelt -d sandbelt_db -f backend/sql/init.sql
 ```
+
+**路径 B：复用本机已装的 Homebrew PostgreSQL 16**（macOS 上常见 —— 已经 `brew install postgresql@16` 的话）
+
+```bash
+brew services start postgresql@16
+createuser -s sandbelt 2>/dev/null  # 已有则跳过
+createdb -O sandbelt sandbelt_db
+psql -U sandbelt -d sandbelt_db -f backend/sql/init.sql
+```
+
+> 注意：路径 B 没有 TimescaleDB（brew 默认不带）；目前代码不依赖 TimescaleDB 的超表特性，普通 PG + PostGIS 够跑。
 
 > **已有部署补丁（2026-05 之前建的库）**：早期 `init.sql` 缺 `regions.bbox_json` 列，会导致 `/api/v1/gis/regions` 报 `UndefinedColumnError`。最新 `init.sql` 已自带 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS bbox_json JSONB;`，重跑一次即可；或手动:
 > ```bash
@@ -297,6 +321,9 @@ fetch('http://localhost:8000/api/v1/ecological/current-status?region=horqin')
 | 前端报 CORS 错 | `.env` 的 `CORS_ORIGINS` 没包含当前前端地址，改完重启后端 |
 | 地图/图表空白 | 后端未启动或 `NEXT_PUBLIC_API_URL` 指错，打开 Network 面板确认 4xx/5xx |
 | SSE 流一次性返回 | 反代关闭了 buffering；本地直连不会有此问题，部署时见 `docs/DEPLOYMENT.md` 的 Nginx 配置 |
+| `/api/v1/basemap/landsat` 返回 500 / Landsat tile 加载不出来 | 本机 HTTP 代理（Clash 等）拦截了 GEE OAuth (`oauth2.googleapis.com`) 和 tile (`earthengine.googleapis.com`)。启后端前 `unset http_proxy https_proxy ALL_PROXY`；浏览器侧需要在代理工具里把 `*.googleapis.com` 加 DIRECT 例外 |
+| `/api/v1/chat/stream` 流式中返回 `Error code: 422 - 模型已下线` | `.env` 里 `LLM_API_BASE / LLM_API_MODEL` 指向的 OpenAI-兼容端点把对应模型下线了；换一个仍在线的模型名或换一家 LLM 提供商 |
+| `pytest tests/test_prediction.py` 报 `ModuleNotFoundError: No module named 'prophet'` | 没跑 `pip install -r backend/requirements.txt`。Prophet 不在 conda 列表里，必须通过 pip 装 |
 | `/api/v1/*` 返回 404 | 后端未加载对应路由模块，检查 `backend/app/api/v1/__init__.py` |
 
 ---
