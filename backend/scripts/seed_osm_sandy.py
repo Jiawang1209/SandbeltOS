@@ -48,8 +48,12 @@ HTTP_HEADERS = {
 # Authoritative ranges per 中国八大沙漠四大沙地 / Wikipedia / 百科:
 #   科尔沁:   41°41′–47°39′N, 116°21′–126°14′E  (≈5.06–6.63 万 km²)
 #   浑善达克: 锡林郭勒南端, 东西长 ~450 km        (≈2.38–3.84 万 km²)
-HORQIN_BBOX = (116.0, 41.5, 126.5, 47.7)   # (minLng, minLat, maxLng, maxLat)
-OTINDAG_BBOX = (111.5, 41.0, 118.5, 44.0)
+# Trimmed so the two rectangles don't visually overlap on the map —
+# Korqin starts at 119°E, Otindag ends at 117°E, leaving a 2° (≈200km)
+# corridor that matches the real geographic separation (Greater Xing'an
+# Range divides the two sand basins).
+HORQIN_BBOX = (119.0, 42.0, 126.5, 47.7)   # (minLng, minLat, maxLng, maxLat)
+OTINDAG_BBOX = (111.5, 41.0, 117.0, 44.0)
 
 CACHE_DIR = Path("/tmp/osm_sand")
 CACHE_DIR.mkdir(exist_ok=True)
@@ -224,13 +228,21 @@ async def main() -> None:
               f"(expected ~{expected_km2:,} km², ratio={ratio:.2f}x)")
 
         if ratio < AUTH_OVERRIDE_THRESHOLD:
+            # OSM tag too sparse to show meaningful coverage on the map.
+            # Fall back to the bbox rectangle so the user sees a recognizable
+            # extent matching the authoritative km² number, and write the
+            # authoritative area_km2.
+            minlng, minlat, maxlng, maxlat = bbox
+            bbox_geom = MultiPolygon([Polygon([
+                (minlng, minlat), (maxlng, minlat),
+                (maxlng, maxlat), (minlng, maxlat), (minlng, minlat),
+            ])])
             print(f"  ⚠ OSM coverage {ratio:.0%} < {AUTH_OVERRIDE_THRESHOLD:.0%} — "
-                  f"writing authoritative {expected_km2:,} km² instead of {osm_km2:,.0f}")
-            written_km2 = float(expected_km2)
+                  f"using bbox rectangle for geometry, authoritative "
+                  f"{expected_km2:,} km² for area")
+            results[region_id] = (to_multipolygon_geojson(bbox_geom), float(expected_km2))
         else:
-            written_km2 = osm_km2
-
-        results[region_id] = (to_multipolygon_geojson(simplified), written_km2)
+            results[region_id] = (to_multipolygon_geojson(simplified), osm_km2)
 
     async with AsyncSessionLocal() as session:
         for region_id, (gj, km2) in results.items():

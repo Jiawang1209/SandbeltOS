@@ -47,7 +47,7 @@
 
 | 阻塞 | 现象 | 根因 | 修复路径 |
 |---|---|---|---|
-| **LLM provider 已下线** | 任何提问 → "Error code: 422 - {'code': 422, 'message': '模型已下线'}" | 中科院 uni-api 上的 `qwen3:235b` 模型已下线（早先保存的 Caragana 对话仍可读，证明历史时点可用）。RAG 检索仍工作（每问拉回 5 条 0.4–0.93 score 的相关文献） | 切到可用 LLM endpoint，或换模型名 |
+| ~~**LLM provider 已下线**~~ ✅ 已解决 | 原 `deepseek-v3:671b` → "Error code: 422 - 模型已下线" | 中科院 uni-api 把该模型下线了。RAG 检索 / 路由 / 实时数据注入均工作；只挂在 LLM 调用上 | 切到 `deepseek-v3.2`（同源继任者），SSE 流式 + token 输出实测通过。`.env.example` 默认值同步更新，并列出探测时仍在线的备选：`deepseek-v4-flash` / `gpt-oss-120b` / `minimax-m27` |
 | **Landsat tile 浏览器侧 SSL 失败** | `https://earthengine.googleapis.com/.../tiles/...` → `net::ERR_ABORTED`；后端 `/api/v1/basemap/landsat` curl 直连返回正确 tile URL | 本机 Clash 代理（127.0.0.1:7897）SSL 拦截 `*.googleapis.com`。后端首次也 500（GEE OAuth token refresh 走代理被 SSL 中断），重启时 `unset http_proxy https_proxy` 后后端 OK，但浏览器仍走系统代理 | demo 录制前关闭 Clash 或在 Clash 规则里把 `*.googleapis.com` + `*.earthengine.com` 加 DIRECT |
 
 > Demo 视频建议：录制前关闭代理；或录第 4、5 步时用 OBS 切到一段静态截图加旁白解释。
@@ -96,13 +96,15 @@
 
 **A 方案（扩 bbox）单独无效**：扩到 (116, 41.5, 126.5, 47.7) 后科尔沁多边形数 N→306 但总面积 2,742→2,734（持平）；浑善达克更糟（21,400 写死值 → 263 真实 OSM 覆盖）。
 
-**B 方案（已实施）**：seed 脚本检测到 OSM 覆盖率 < 50% 时，几何保留 OSM 真实多边形（范围对、形状散落），但 `area_km2` 改写为权威值：
-- 科尔沁 50,600 km²（百度百科 / 《中国八大沙漠四大沙地》2024）
-- 浑善达克 23,800 km²（维基百科保守口径）
+**B 方案首次尝试**：保留 OSM 多边形 + 仅改写 area_km2 → KPI 数字对了，但地图视觉变成稀疏小斑块散落，浑善达克"消失"。
 
-修复后 KPI 显示 **74,400 km²**（截图 [`01_dashboard_combined.png`](demos/01_dashboard_combined.png)）。
+**B 修订（已实施）**：覆盖率 < 50% 时，**几何也降级为 bbox 矩形**（不再保留稀疏 OSM 多边形），area_km2 写入权威值：
+- 科尔沁 50,600 km²（bbox 119–126.5°E × 42–47.7°N，百度百科 / 《中国八大沙漠四大沙地》2024）
+- 浑善达克 23,800 km²（bbox 111.5–117°E × 41–44°N，维基百科保守口径）
 
-**C 方案（路线图 2️⃣ 时一并做）**：接 NESDC 官方"中国沙化土地分布"矢量数据替换 OSM 多边形，几何 + 面积全权威。
+两矩形 bbox 之间留 **2°（≈200km）的可见空隙**，对应真实地理上大兴安岭对两片沙地的分割。修复后地图上看到两片明显的橙色填充矩形，KPI 显示 **74,400 km²**（截图 [`01_dashboard_combined.png`](demos/01_dashboard_combined.png)）。
+
+**C 方案（路线图 2️⃣ 时一并做）**：接 NESDC 官方"中国沙化土地分布"矢量数据替换 OSM 多边形 / 粗矩形，几何 + 面积全权威。
 
 ---
 
