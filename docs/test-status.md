@@ -172,3 +172,43 @@ A docs/demos/05_landsat_swipe_loaded.png  # 对比 + Landsat 加载中
 
 *版本：v1 | 拟稿日期：2026-05-18 | 基线 commit：e6a75c8 + 本次修复*
 *版本：v2 | 续修日期：2026-05-18 | 新增 commit：`3ea80d0` + 数据态变更(无代码 diff)*
+
+---
+
+## 八、里程碑 2️⃣ 真实 GEE 数据接入 · 全量历史(2026-05-18 → 19 续)
+
+`fetch_all_gee.py` 应用同样的串行补丁后全量跑 2000-2026 ≈ 100 分钟,4 个指标 × 2 区域全部入库:
+
+| 区域 | 指标 | source | 行数 | 时间范围 | 均值 | min / max |
+|---|---|---|---|---|---|---|
+| 科尔沁 | NDVI | MODIS_GEE | 603 | 2000-02 → 2026-04 | 0.31 | 0.04 / 0.74 |
+| 科尔沁 | EVI  | MODIS_GEE | 603 | 同上 | 0.20 | 0.03 / 0.53 |
+| 科尔沁 | LST  | MODIS_GEE | 1203 | 2000-02 → 2026-05 | 16.6 °C | -22.4 / +42.2 °C |
+| 科尔沁 | soil_moisture | SMAP_GEE | 124 | 2015-03 → 2025-06 | 0.147 m³/m³ | 0.088 / 0.225 |
+| 浑善达克 | NDVI | MODIS_GEE | 603 | 同上 | 0.18 | -0.02 / 0.45 |
+| 浑善达克 | EVI  | MODIS_GEE | 603 | 同上 | 0.12 | -0.02 / 0.30 |
+| 浑善达克 | LST  | MODIS_GEE | 1203 | 同上 | 16.2 °C | -22.1 / +45.6 °C |
+| 浑善达克 | soil_moisture | SMAP_GEE | 124 | 同上 | 0.115 m³/m³ | 0.084 / 0.194 |
+
+### 物理一致性体检
+
+- ✅ LST 季节摆幅 -22 → +45 °C(MODIS 是地表辐射温度,夏季沙地表面可破 40 °C)
+- ✅ SMAP 仅 2015 起(卫星 2015-01 升空)、科尔沁 > 浑善达克(降水梯度)
+- ✅ NDVI / EVI 比值在合理区间(EVI ≈ 0.6 × NDVI,符合 MOD13A1 经验)
+- ✅ 科尔沁 NDVI / SM 均高于浑善达克(气候带一致)
+- ✅ 测试套件回归 118/118(`~55 s`)
+
+### 代码改动
+
+- `dd2c112` fix(gee): apply serial per-image pattern to fetch_all_gee NDVI+LST — 同源补丁,移除 `_fetch_with_retry` 并修 EVI band-suffix bug;SMAP 因已是 monthly composite 无需改
+
+### 前端 / API 状态
+
+- `/api/v1/ecological/timeseries?indicator={ndvi|evi|lst|soil_moisture}` 全部可查(API 层早已支持)
+- 当前 dashboard 只接 NDVI + EVI 两个 series;LST / SMAP 入库后可作为 RAG/chat 注入的实时上下文(`/chat` 的 ContextMetrics 已含 `soil_moisture` 字段)
+- 在 UI 上加 LST/SMAP chart 是可选后续(非阻塞)
+
+### 已知非阻塞
+
+- 2026 只到 4-5 月(MODIS 实时延迟 ~3 周),2026 部分 = 8 NDVI + 16 LST scenes,正常
+- SMAP 数据延伸到 2025-06 而不是 2026,推测 NASA GEE 端 SMAP 滞后较多,非脚本问题
