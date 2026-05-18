@@ -399,10 +399,18 @@ export default function RegionMap({
 
     const doFit = () => {
       map.resize();
-      map.fitBounds(bounds, {
-        // Larger padding on single-region view gives breathing room around the
-        // sandy-land polygon so it doesn't crowd the edges of the map pane.
-        padding: selectedRegionId != null ? 80 : 40,
+      // cameraForBounds gives us the zoom + center fitBounds would
+      // pick (with the same padding), without starting an animation —
+      // we then nudge the zoom up on single-region view and pan+zoom
+      // in one easeTo. Chaining fitBounds → zoomTo created a race
+      // where zoomTo interrupted fitBounds' pan and the camera stayed
+      // on the previously selected region.
+      const cam = map.cameraForBounds(bounds, { padding: 40 });
+      if (!cam) return;
+      const zoom = (cam.zoom ?? map.getZoom()) + (selectedRegionId != null ? 0.7 : 0);
+      map.easeTo({
+        center: cam.center as [number, number] | maplibregl.LngLat,
+        zoom,
         duration: animated ? 700 : 0,
       });
     };
