@@ -59,45 +59,53 @@
 
 ## 2. 技术栈选型
 
+> 本节反映**实际在用**的库,而不是初始设计稿。早期版本曾列出 Zustand / SWR /
+> Shadcn / Deck.gl / LangChain 全套链 / PyTorch LSTM / InVEST 等组件,实际开发
+> 中这些都被替换或精简。下面是当前 `package.json` + `requirements.txt` 的真相。
+
 ### 2.1 后端
 
 | 组件 | 技术选型 | 版本 | 用途 |
 |------|---------|------|------|
 | Web 框架 | FastAPI | >=0.110 | REST API + SSE 流式输出 |
-| ORM | SQLAlchemy | >=2.0 | 数据库操作 |
-| 时序数据库 | TimescaleDB (PostgreSQL) | >=2.14 | 生态指标时序存储 |
+| ORM | SQLAlchemy | >=2.0 (async) | 数据库操作 |
+| 时序数据库 | TimescaleDB on PostgreSQL 16 | timescaledb-ha:pg16 | 生态指标超表 |
 | 空间扩展 | PostGIS | >=3.4 | 矢量空间查询 |
 | 向量数据库 | ChromaDB | >=0.5 | RAG 文献检索 |
-| RAG 框架 | LangChain | >=0.2 | 问答链编排 |
-| LLM API | Anthropic Claude | claude-sonnet-4-6 | 问答生成 |
-| Embedding | text-embedding-3-small (OpenAI) 或 bge-m3 (本地) | — | 文献向量化 |
-| 数据调度 | Prefect | >=2.0 | 定时拉取遥感数据 |
+| Embedding | bge-m3 (本地) | BAAI/bge-m3 | 多语言文献向量化 |
+| Reranker | bge-reranker-v2-m3 (本地) | BAAI/bge-reranker-v2-m3 | 两阶段检索 rerank |
+| 文本切片 | `langchain_text_splitters.RecursiveCharacterTextSplitter` | — | 仅用切片,不用 LangChain 链路 |
+| LLM API | OpenAI-兼容 endpoint(默认 [uni-api](https://uni-api.cstcloud.cn) 的 `deepseek-v3.2`) | — | 流式问答生成 |
 | 遥感数据 | earthengine-api | >=0.1.4 | GEE Python 接口 |
 | 气象数据 | cdsapi | >=0.7 | ERA5 下载 |
-| 地理计算 | GeoPandas + Rasterio | — | 空间数据处理 |
-| 缓存 | Redis | >=7 | API 响应缓存 |
+| 地理计算 | GeoPandas + Rasterio + Shapely | — | 空间数据处理 |
+| 缓存 | Redis | >=7 | Prophet 预测缓存 30 min |
+| 调度 | (暂无,roadmap 上有 Prefect,未起) | — | 现在靠手动跑 `scripts/fetch_*` |
 
 ### 2.2 前端
 
 | 组件 | 技术选型 | 版本 | 用途 |
 |------|---------|------|------|
-| 框架 | Next.js (React) | >=14 | 全栈前端 |
-| 地图引擎 | Deck.gl + MapboxGL / Maplibre | — | GIS 可视化 |
-| 图表库 | ECharts | >=5 | 时序图/雷达图/热力图 |
-| 状态管理 | Zustand | — | 全局状态 |
-| HTTP 客户端 | SWR + fetch | — | 数据请求 + SSE |
-| UI 组件 | Shadcn/ui + Tailwind CSS | — | 界面组件 |
-| 类型系统 | TypeScript | — | 类型安全 |
+| 框架 | Next.js (React) | 16.2.4 / React 19.2 | App Router,本仓库的 Next 与训练数据有差异,见 `frontend/AGENTS.md` |
+| 地图引擎 | MapLibre GL | ^5.23 | 矢量底图 + 多边形/网格图层 |
+| 图表库 | ECharts(via echarts-for-react) | ^6.0 | 时序/双轴/对比图 |
+| 状态 | 原生 `useState` / `useReducer` | — | 没用 Zustand,组件层 prop drilling 够用 |
+| HTTP | 原生 `fetch` | — | 没用 SWR,流式 SSE 走 `ReadableStream` |
+| UI | Tailwind CSS v4 自写组件 | ^4 | 没用 Shadcn,`card-surface` 等 design tokens 走 CSS vars |
+| 类型 | TypeScript | ^5 | 类型安全 |
+| E2E | Playwright | ^1.59 | 浏览器手测脚本(占位,暂未在 CI 跑) |
 
 ### 2.3 ML / 分析
 
 | 组件 | 用途 |
 |------|------|
-| scikit-learn | 随机森林沙化风险分类 |
-| PyTorch + LSTM | 植被 NDVI 时序预测 |
-| Prophet | 快速时序基线预测 |
-| InVEST (natcap) | 防风固沙服务量化 |
-| RWEQ 模型 (自实现) | 风蚀模数计算 |
+| Prophet | NDVI 时序预测(基线 + 也是落地版本) |
+| 自实现 RWEQ | 风蚀模数计算 |
+| 自实现树种水耗常数表(`SPECIES_WATER_USE_MM`) | 6 种树种 × 密度 × 年限 造林情景模拟 |
+
+> **不在的:** scikit-learn / PyTorch / LSTM / InVEST 都不在依赖里。早期设计稿提
+> 过,Phase 5 最终选择了"Prophet 基线 + 经验常数情景"路线,因为数据量 + 用户场
+> 景不需要更重的 ML 栈。
 
 ---
 

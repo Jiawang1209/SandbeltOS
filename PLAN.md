@@ -17,14 +17,15 @@
 
 | 层 | 选型 |
 |----|------|
-| 后端 | FastAPI + SQLAlchemy + TimescaleDB/PostGIS |
-| 前端 | Next.js 14 + Deck.gl + ECharts + Shadcn/ui |
-| 数据采集 | earthengine-api + cdsapi + Prefect |
-| RAG | LangChain + ChromaDB + Claude API |
-| ML | Prophet（基线）+ PyTorch LSTM（进阶） |
-| 环境 | Miniforge conda env `sandbelt` (Python 3.11 + Node.js 20) |
+| 后端 | FastAPI + SQLAlchemy 2.0 + TimescaleDB/PostGIS |
+| 前端 | Next.js 16 + React 19 + MapLibre GL + ECharts + Tailwind v4 |
+| 数据采集 | earthengine-api + cdsapi(ERA5)  ※ Prefect 调度暂未起 |
+| RAG | bge-m3(本地 embedding)+ bge-reranker + ChromaDB + OpenAI-兼容 LLM(默认 deepseek-v3.2) |
+| ML | Prophet(NDVI 预测)+ 自实现 RWEQ(风蚀)+ 树种水耗常数表(情景) |
+| 部署 | Docker Compose(timescale-ha + Redis + FastAPI + Next.js) |
+| CI | GitHub Actions: frontend tsc/eslint + backend pytest |
 
-> 完整架构图、数据库 Schema、代码模板详见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+> 完整架构图、数据库 Schema、各层数据流详见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ---
 
