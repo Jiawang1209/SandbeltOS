@@ -174,12 +174,16 @@ export interface GridGeoJSON {
   features: GridCellFeature[];
 }
 
+export type GridSource = "modis" | "s2";
+
 export async function fetchNdviGrid(
   regionId: number,
-  year: number
+  year: number,
+  source: GridSource = "modis",
 ): Promise<GridGeoJSON> {
+  const params = new URLSearchParams({ year: String(year), source });
   const res = await fetch(
-    `${API_BASE}/api/v1/grid/ndvi/${regionId}?year=${year}`
+    `${API_BASE}/api/v1/grid/ndvi/${regionId}?${params}`,
   );
   if (!res.ok) {
     return { type: "FeatureCollection", features: [] };
@@ -187,8 +191,13 @@ export async function fetchNdviGrid(
   return res.json();
 }
 
-export async function fetchNdviGridYears(regionId: number): Promise<number[]> {
-  const res = await fetch(`${API_BASE}/api/v1/grid/ndvi/${regionId}/years`);
+export async function fetchNdviGridYears(
+  regionId: number,
+  source: GridSource = "modis",
+): Promise<number[]> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/grid/ndvi/${regionId}/years?source=${source}`,
+  );
   if (!res.ok) return [];
   const body = await res.json();
   return body.years ?? [];
@@ -230,10 +239,12 @@ export async function fetchNdviDiff(
   regionId: number,
   beforeYear: number,
   afterYear: number,
+  source: GridSource = "modis",
 ): Promise<NdviDiffResponse | null> {
   const params = new URLSearchParams({
     before: String(beforeYear),
     after: String(afterYear),
+    source,
   });
   const res = await fetch(
     `${API_BASE}/api/v1/grid/ndvi-diff/${regionId}?${params}`,

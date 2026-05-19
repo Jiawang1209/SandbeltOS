@@ -56,6 +56,7 @@ import {
   type LandCoverYear,
   type ForecastPoint,
   type NdviDiffResponse,
+  type GridSource,
 } from "@/lib/api";
 
 interface RegionData {
@@ -91,6 +92,10 @@ export default function DashboardPage() {
   // Defaults to (earliest, latest) of the same `hotspotYears` cache so the
   // mode immediately tells the longest-window restoration story.
   const [diffGrid, setDiffGrid] = useState<NdviDiffResponse | null>(null);
+  // Sensor selection for both hotspot + diff. Default MODIS (always cached);
+  // switch to S2 only when the user explicitly asks for the finer resolution
+  // and the corresponding S2 cache has been built.
+  const [gridSource, setGridSource] = useState<GridSource>("modis");
   // Compare mode replaces the map with a Landsat true-color swipe view.
   const [compareMode, setCompareMode] = useState(false);
   const [compareBeforeYear, setCompareBeforeYear] = useState(2015);
@@ -145,18 +150,19 @@ export default function DashboardPage() {
     setSelectedYear(availableYears[0]);
   }, [selectedId, availableYears]);
 
-  // Discover which years have cached hotspot grids for the selected region,
-  // so the time slider can snap to the nearest available year in hotspot mode.
+  // Discover which years have cached hotspot grids for the selected region
+  // + source, so the time slider can snap to the nearest available year and
+  // the diff layer can pick (earliest, latest). Refetches when source flips.
   useEffect(() => {
     if (selectedId == null) return;
     let cancelled = false;
-    fetchNdviGridYears(selectedId).then((ys) => {
+    fetchNdviGridYears(selectedId, gridSource).then((ys) => {
       if (!cancelled) setHotspotYears(ys);
     });
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
+  }, [selectedId, gridSource]);
 
   // Fetch land-cover composition the first time a sandy land is selected.
   // Cached in-memory by region id so repeat visits avoid the roundtrip.
@@ -215,13 +221,13 @@ export default function DashboardPage() {
       Math.abs(y - selectedYear) < Math.abs(best - selectedYear) ? y : best
     );
     let cancelled = false;
-    fetchNdviGrid(selectedId, nearest).then((g) => {
+    fetchNdviGrid(selectedId, nearest, gridSource).then((g) => {
       if (!cancelled) setHotspotGrid(g);
     });
     return () => {
       cancelled = true;
     };
-  }, [layerMode, selectedId, selectedYear, hotspotYears]);
+  }, [layerMode, selectedId, selectedYear, hotspotYears, gridSource]);
 
   // Fetch the NDVI diff (longest available window) when diff mode is active.
   // No year picker yet — we compute (min cached year, max cached year) so
@@ -236,13 +242,13 @@ export default function DashboardPage() {
     const before = hotspotYears[0];
     const after = hotspotYears[hotspotYears.length - 1];
     let cancelled = false;
-    fetchNdviDiff(selectedId, before, after).then((g) => {
+    fetchNdviDiff(selectedId, before, after, gridSource).then((g) => {
       if (!cancelled) setDiffGrid(g);
     });
     return () => {
       cancelled = true;
     };
-  }, [layerMode, selectedId, hotspotYears]);
+  }, [layerMode, selectedId, hotspotYears, gridSource]);
 
   useEffect(() => {
     async function load() {
@@ -548,6 +554,13 @@ export default function DashboardPage() {
             )}
             {!compareMode && layerMode === "diff" && (
               <NdviDiffLegend summary={diffGrid?.summary ?? null} />
+            )}
+            {!compareMode && (layerMode === "hotspot" || layerMode === "diff") && (
+              <GridSourceToggle
+                source={gridSource}
+                onChange={setGridSource}
+                yearsAvailable={hotspotYears.length}
+              />
             )}
             {!compareMode &&
               (layerMode === "ndvi" || layerMode === "hotspot") &&
@@ -932,6 +945,50 @@ function LayerToggle({
           }`}
         >
           {labels[mode]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function GridSourceToggle({
+  source,
+  onChange,
+  yearsAvailable,
+}: {
+  source: GridSource;
+  onChange: (s: GridSource) => void;
+  yearsAvailable: number;
+}) {
+  // Bottom-right pill: lets the user flip between MODIS (always cached)
+  // and Sentinel-2 (only present if `scripts/fetch_s2_grid.py` has been
+  // run server-side). When the S2 cache is empty for the active region,
+  // we still show the toggle but mark the pill as "0 years cached" so
+  // the user knows why no cells render after flipping.
+  const labels: Record<GridSource, string> = {
+    modis: "MODIS 500m",
+    s2: "S2 10m",
+  };
+  const hint =
+    source === "s2" && yearsAvailable === 0
+      ? "尚未生成 S2 缓存,运行 scripts/fetch_s2_grid.py"
+      : `${yearsAvailable} 年数据可用`;
+  return (
+    <div
+      title={hint}
+      className="absolute bottom-3 right-3 flex overflow-hidden rounded-full border border-[var(--line)] bg-white/90 p-0.5 text-[11px] shadow-sm backdrop-blur"
+    >
+      {(["modis", "s2"] as const).map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          className={`rounded-full px-3 py-1 font-medium transition ${
+            source === s
+              ? "bg-[var(--ink)] text-white"
+              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          }`}
+        >
+          {labels[s]}
         </button>
       ))}
     </div>
