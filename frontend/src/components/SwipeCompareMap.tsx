@@ -37,6 +37,10 @@ export default function SwipeCompareMap({
   // Fetch both tile URLs. Keyed on year so changing the slider refreshes.
   useEffect(() => {
     let cancelled = false;
+    // Eager loading reset is intentional: the year just changed, we
+    // want the spinner up immediately rather than waiting for the
+    // network round-trip. No cascade — the deps gate re-runs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
     Promise.all([

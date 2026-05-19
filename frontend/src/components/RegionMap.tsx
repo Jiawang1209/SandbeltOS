@@ -67,7 +67,12 @@ export default function RegionMap({
   const popupsRef = useRef<maplibregl.Popup[]>([]);
   const fittedRef = useRef(false);
   const onSelectRef = useRef(onSelectRegion);
-  onSelectRef.current = onSelectRegion;
+  // Mutate the ref in an effect rather than during render — React 19's
+  // stricter mode flags ref writes in the render path. We still want the
+  // latest callback inside the map's click handler, hence the ref.
+  useEffect(() => {
+    onSelectRef.current = onSelectRegion;
+  });
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;

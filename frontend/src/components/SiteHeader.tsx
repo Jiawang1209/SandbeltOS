@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 interface RegionPillOption {
   id: number | null;
   label: string;
@@ -24,7 +26,7 @@ export default function SiteHeader({ regions, selectedId, onSelect }: SiteHeader
       >
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-6 px-6 py-4">
           {/* Identity */}
-          <a href="/" className="flex items-center gap-4 group">
+          <Link href="/" className="flex items-center gap-4 group">
             <div
               className="grid h-11 w-11 place-items-center rounded-md text-white shadow-sm transition group-hover:shadow"
               style={{
@@ -52,7 +54,7 @@ export default function SiteHeader({ regions, selectedId, onSelect }: SiteHeader
                 </span>
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Region selector + actions */}
           <div className="flex items-center gap-2">

@@ -17,6 +17,14 @@ export function useConversations() {
 
   // Hydrate from localStorage on mount. Creating a fresh conversation when
   // the store is empty keeps the UI usable on first load.
+  //
+  // The setState calls below run synchronously inside an effect, which the
+  // react-hooks/set-state-in-effect rule warns about. Here it's correct:
+  // localStorage isn't available during SSR, so we can't lazy-init via
+  // `useState(() => loadConversations())` — that would either crash on the
+  // server or produce a hydration mismatch with the client. The empty `[]`
+  // deps guarantee this is a one-shot mount effect, not a cascade.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const stored = loadConversations();
     if (stored.length > 0) {
@@ -29,6 +37,7 @@ export function useConversations() {
     }
     hydrated.current = true;
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Persist after hydration so we don't overwrite storage with the empty
   // initial state during the first render pass.
