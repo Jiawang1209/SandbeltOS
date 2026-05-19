@@ -21,6 +21,7 @@ const REGION_ID_TO_ALIAS: Record<number, string> = {
 import SwipeCompareMap from "@/components/SwipeCompareMap";
 import NdviChart from "@/components/NdviChart";
 import WeatherChart from "@/components/WeatherChart";
+import LstSmapChart from "@/components/LstSmapChart";
 import RiskChart from "@/components/RiskChart";
 import AlertBanner from "@/components/AlertBanner";
 import AchievementChart from "@/components/AchievementChart";
@@ -59,6 +60,13 @@ interface RegionData {
   region: Region;
   ndvi: TimeseriesRecord[];
   evi: TimeseriesRecord[];
+  // MODIS MOD11A2 8-day LST (°C, scaled in backend pipeline). Empty when the
+  // region has no LST rows yet — the chart hides itself in that case.
+  lst: TimeseriesRecord[];
+  // SMAP L4 monthly soil moisture (m³/m³). Distinct from ERA5's
+  // soil_moisture column on weather_data — that one is reanalysis, this is
+  // the satellite product.
+  soilMoisture: TimeseriesRecord[];
   weather: WeatherRecord[];
   risk: RiskRecord[];
   latest: RiskRecord | null;
@@ -226,10 +234,12 @@ export default function DashboardPage() {
         await Promise.all(
           subregions.map(async (f) => {
             const id = f.properties.id;
-            const [ndviRes, eviRes, weatherRes, riskRes, statusRes] =
+            const [ndviRes, eviRes, lstRes, smapRes, weatherRes, riskRes, statusRes] =
               await Promise.all([
                 fetchTimeseries(id, "ndvi"),
                 fetchTimeseries(id, "evi"),
+                fetchTimeseries(id, "lst"),
+                fetchTimeseries(id, "soil_moisture"),
                 fetchWeather(id),
                 fetchRiskTimeseries(id),
                 fetchCurrentStatus(id),
@@ -238,6 +248,8 @@ export default function DashboardPage() {
               region: ndviRes.region,
               ndvi: ndviRes.data,
               evi: eviRes.data,
+              lst: lstRes.data,
+              soilMoisture: smapRes.data,
               weather: weatherRes.data,
               risk: riskRes.data,
               latest: statusRes.latest,
@@ -623,6 +635,21 @@ export default function DashboardPage() {
               >
                 <WeatherChart data={current.weather} />
               </section>
+
+              {/* LST + SMAP — MODIS thermal + SMAP soil moisture, dual-axis.
+                  Hidden if both series are empty so older regions without
+                  these pulls don't show a blank card. */}
+              {(current.lst.length > 0 || current.soilMoisture.length > 0) && (
+                <section
+                  className="card-surface p-2"
+                  style={{ gridColumn: "span 12 / span 12", minHeight: 280 }}
+                >
+                  <LstSmapChart
+                    lstData={current.lst}
+                    smapData={current.soilMoisture}
+                  />
+                </section>
+              )}
 
               {/* Phase 5 — Scenario lab. Spans the full width so the chart has
                   enough horizontal room for multi-year projections. */}
