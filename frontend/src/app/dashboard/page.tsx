@@ -327,6 +327,15 @@ export default function DashboardPage() {
     current?.latest?.factors.carbon_density != null
       ? Math.round(current.latest.factors.carbon_density)
       : null;
+  // Most-recent LST + SMAP samples — backend returns ORDER BY time so the
+  // last element is the freshest. Used by the KPI strip to show "current"
+  // thermal + soil-moisture state alongside vegetation indices.
+  const lstLatest =
+    current && current.lst.length > 0 ? current.lst[current.lst.length - 1] : null;
+  const smLatest =
+    current && current.soilMoisture.length > 0
+      ? current.soilMoisture[current.soilMoisture.length - 1]
+      : null;
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
@@ -534,28 +543,62 @@ export default function DashboardPage() {
 
           {current ? (
             <>
-              {/* KPI row (right side, first sub-row) */}
-              <KpiCard
-                label="NDVI 均值"
-                value={ndviMean != null ? ndviMean.toFixed(3) : "—"}
-                hint="2020-2024"
-                tone="moss"
-                style={{ gridColumn: "span 2 / span 2" }}
-              />
-              <KpiCard
-                label="植被覆盖度 FVC"
-                value={fvcPct != null ? `${fvcPct.toFixed(1)}%` : "—"}
-                hint="最新月"
-                tone="moss"
-                style={{ gridColumn: "span 2 / span 2" }}
-              />
-              <KpiCard
-                label="碳密度"
-                value={carbon != null ? carbon.toLocaleString() : "—"}
-                hint="gC/m²"
-                tone="sand"
-                style={{ gridColumn: "span 2 / span 2" }}
-              />
+              {/* KPI strip (right side, first sub-row). Wrapped in one span-6
+                  container with an internal 5-col grid so vegetation + thermal
+                  + soil-moisture cards all share equal width without breaking
+                  the outer 12-col layout. */}
+              <div
+                style={{
+                  gridColumn: "span 6 / span 6",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+                  gap: "0.5rem",
+                }}
+              >
+                <KpiCard
+                  label="NDVI 均值"
+                  value={ndviMean != null ? ndviMean.toFixed(3) : "—"}
+                  hint="2020-2024"
+                  tone="moss"
+                  compact
+                />
+                <KpiCard
+                  label="植被覆盖度 FVC"
+                  value={fvcPct != null ? `${fvcPct.toFixed(1)}%` : "—"}
+                  hint="最新月"
+                  tone="moss"
+                  compact
+                />
+                <KpiCard
+                  label="碳密度"
+                  value={carbon != null ? carbon.toLocaleString() : "—"}
+                  hint="gC/m²"
+                  tone="sand"
+                  compact
+                />
+                <KpiCard
+                  label="地表温度 LST"
+                  value={
+                    lstLatest != null ? `${lstLatest.value.toFixed(1)}°` : "—"
+                  }
+                  hint={lstLatest != null ? lstLatest.time.slice(0, 7) : "—"}
+                  tone="sand"
+                  compact
+                />
+                <KpiCard
+                  label="土壤湿度 SM"
+                  value={
+                    smLatest != null ? smLatest.value.toFixed(3) : "—"
+                  }
+                  hint={
+                    smLatest != null
+                      ? `${smLatest.time.slice(0, 7)} · m³/m³`
+                      : "m³/m³"
+                  }
+                  tone="moss"
+                  compact
+                />
+              </div>
 
               {/* Risk trend chart (right side, second sub-row) */}
               <section
