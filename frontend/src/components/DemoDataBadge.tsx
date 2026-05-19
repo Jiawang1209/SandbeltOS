@@ -1,10 +1,15 @@
 "use client";
 
 /**
- * Floating "演示数据" badge — flagged on any view that mixes synthetic
- * source data into a model output (forecast, scenario). Removed once
- * the upstream pipeline switches to real GEE / ERA5 ingestion for the
- * region in question.
+ * Floating "演示数据" badge — gated by NEXT_PUBLIC_DEMO_MODE at build
+ * time. Hidden by default since the GEE / ERA5 / SMAP pipelines now
+ * ingest real data; set NEXT_PUBLIC_DEMO_MODE=true in `.env` (and
+ * rebuild the frontend) to bring the badge back as a fallback, e.g.
+ * during synthetic-data demos or model-calibration walkthroughs.
+ *
+ * Call sites stay unchanged: this component always renders null when
+ * the env var is off, so wrapping JSX and conditional logic at the
+ * consumer remain intact.
  *
  * Anchors to the *parent* (the consuming card must be `position: relative`).
  */
@@ -13,10 +18,13 @@ interface DemoDataBadgeProps {
   title?: string;
 }
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 export default function DemoDataBadge({
   className,
-  title = "本视图融合合成数据,真实 GEE / ERA5 数据接入后会重新校准。",
+  title = "本视图融合合成数据 / 模型外推。设置 NEXT_PUBLIC_DEMO_MODE=true 才会显示此角标。",
 }: DemoDataBadgeProps) {
+  if (!DEMO_MODE) return null;
   return (
     <span
       title={title}

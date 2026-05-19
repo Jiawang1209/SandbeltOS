@@ -22,6 +22,22 @@ Coefficients are NOT calibrated against measured plot data. The model
 is suitable for *qualitative* what-if exploration and decision support
 visualisation, not for permitting decisions or quantitative yield
 forecasts.
+
+## 2026-05-19 audit (real ingest landed)
+
+After ERA5 + SMAP real data hit the DB (commits `461a0ff` → `dd2c112`),
+the actual observed ranges for Korqin + Hunshandake are:
+
+  * annual precipitation:   ~250-400 mm/yr  (ERA5)
+  * soil moisture:          ~0.05-0.20 m³/m³  (SMAP)
+  * annual mean wind speed: ~3-5 m/s  (ERA5)
+
+These all land inside the design envelope baked into the constants
+below (SM_FLOOR=0.02, SM_OPTIMUM=0.15, DEFAULT_WIND_SPEED_MS=4.0). No
+coefficient retuning is performed in this audit — the relative
+behaviour (drought-tolerant vs water-hungry) the tests assert against
+remains intact, and `pytest tests/test_scenario.py` is green. Revisit
+once we have measured plot data for the two regions, not before.
 """
 from __future__ import annotations
 
