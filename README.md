@@ -401,6 +401,7 @@ bash deploy.sh
 | [docs/superpowers/plans/2026-05-12-post-phase5-roadmap.md](docs/superpowers/plans/2026-05-12-post-phase5-roadmap.md) | Phase 5 之后的后续路线图（当前状态实时维护） |
 | [docs/test-status.md](docs/test-status.md) | 测试与端到端验证的事实记录（含历次回归取证） |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | CI workflow：frontend tsc+eslint / backend pytest with TimescaleDB |
+| [scripts/ci-local.sh](scripts/ci-local.sh) | 本地复现 CI 的脚本:push 前 `./scripts/ci-local.sh` 一行验完前后端,与 GitHub Actions 等价 |
 | [backend/scripts/eval_rag.py](backend/scripts/eval_rag.py) | RAG 检索质量离线评测 — recall@K / MRR / kw 覆盖 |
 | [backend/tests/golden_qa.yaml](backend/tests/golden_qa.yaml) | RAG 评测用的 20 题 golden set（覆盖全 PDF 语料） |
 | [QUICKSTART_CN.md](QUICKSTART_CN.md) | 部署快速开始（3 步上线） |
