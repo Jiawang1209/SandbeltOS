@@ -212,7 +212,7 @@ psql -U sandbelt -d sandbelt_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 - [x] 仪表盘显示指标卡和预警 ✅ 2026-05-18（1.3 walkthrough：4 个指标卡 NDVI / FVC / 碳密度 / 沙化风险 + 红色"极高风险预警"banner 均在）
 - [x] 地图能切换 NDVI/风险 两个图层 ✅ 2026-05-18（"植被覆盖 / 沙化风险 / 像素热点" 三按钮切换正常）
-- [ ] Prefect 定时任务在跑（**仍缺**：Prefect 进程未起，flow 没注册到调度器；数据接入真实 GEE/ERA5 后再做）
+- [x] Prefect 定时任务（基础设施）✅ 2026-05-19（`backend/pipeline/flows/refresh.py`：`gee-refresh-16d` cron `0 2 */16 * *` + `era5-refresh-daily` cron `0 3 * * *`；ad-hoc 通过 `--run gee/era5`，长期调度 `--serve`；仍需用户在服务器上跑 `--serve` 让循环启动起来）
 
 > 完成度盘点详见 [`docs/test-status.md`](docs/test-status.md) §三。
 
