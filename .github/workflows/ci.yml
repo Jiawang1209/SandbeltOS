@@ -1,0 +1,101 @@
+# SandbeltOS CI
+#
+# Two parallel jobs:
+#   - frontend: type-check + lint (no DB needed, ~1 min)
+#   - backend:  pytest -m "not slow" against a real TimescaleDB+PostGIS
+#               service container with init.sql + synthetic seed data
+#
+# Model-heavy tests (bge-m3 embedder, bge-reranker, Prophet) are marked
+# `slow` and intentionally skipped here — they need a ~2.5GB model
+# download which doesn't belong on every push. Add a separate workflow
+# (or schedule) when we're ready to gate on them.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: frontend · tsc + eslint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint
+
+  backend:
+    name: backend · pytest (not slow)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Same image family as docker-compose; PATRONI_DISABLE keeps it
+        # in single-node mode so the healthcheck stays meaningful.
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_USER: sandbelt
+          POSTGRES_PASSWORD: sandbelt_test
+          POSTGRES_DB: sandbelt_db
+          PATRONI_DISABLE: 'true'
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sandbelt -d sandbelt_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DATABASE_URL: postgresql+asyncpg://sandbelt:sandbelt_test@localhost:5432/sandbelt_db
+      DATABASE_URL_SYNC: postgresql://sandbelt:sandbelt_test@localhost:5432/sandbelt_db
+      REDIS_URL: redis://localhost:6379/0
+      APP_ENV: test
+      # PgPassword for psql CLI invocation below.
+      PGPASSWORD: sandbelt_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+      - name: System deps (GDAL / PROJ / libpq)
+        # rasterio + fiona + geopandas need the GDAL headers at install
+        # time; libpq is required by psycopg2-binary's runtime fallback
+        # and by the psql CLI we use for init.sql / seed.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gdal-bin libgdal-dev libpq-dev postgresql-client
+      - name: Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Apply schema (sql/init.sql)
+        run: psql -h localhost -U sandbelt -d sandbelt_db -f sql/init.sql
+      - name: Seed synthetic data
+        # Provides region_id=1 (科尔沁沙地) + NDVI/EVI/weather rows that
+        # tests/test_timeseries_api.py asserts against.
+        run: python -m scripts.seed_data
+      - name: Pytest (excluding slow model-heavy tests)
+        run: pytest -m "not slow" -v --tb=short
