@@ -194,6 +194,54 @@ export async function fetchNdviGridYears(regionId: number): Promise<number[]> {
   return body.years ?? [];
 }
 
+// ---------------- NDVI diff (change detection) ----------------
+
+export interface NdviDiffCell {
+  col: number;
+  row: number;
+  ndvi_before: number;
+  ndvi_after: number;
+  diff: number;
+}
+
+export interface NdviDiffSummary {
+  region_id: number;
+  before_year: number;
+  after_year: number;
+  n_cells: number;
+  mean_diff: number;
+  gain_cells: number;
+  loss_cells: number;
+  top_gain: NdviDiffCell[];
+  top_loss: NdviDiffCell[];
+}
+
+export interface NdviDiffResponse {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    properties: NdviDiffCell;
+    geometry: { type: "Polygon"; coordinates: number[][][] };
+  }>;
+  summary: NdviDiffSummary;
+}
+
+export async function fetchNdviDiff(
+  regionId: number,
+  beforeYear: number,
+  afterYear: number,
+): Promise<NdviDiffResponse | null> {
+  const params = new URLSearchParams({
+    before: String(beforeYear),
+    after: String(afterYear),
+  });
+  const res = await fetch(
+    `${API_BASE}/api/v1/grid/ndvi-diff/${regionId}?${params}`,
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
 // ---------------- Land-cover composition ----------------
 
 export interface LandCoverYear {

@@ -16,7 +16,7 @@ interface RiskSummary {
   [regionId: number]: number;
 }
 
-export type MapLayerMode = "ndvi" | "risk" | "hotspot";
+export type MapLayerMode = "ndvi" | "risk" | "hotspot" | "diff";
 
 interface RegionMapProps {
   regions: RegionsGeoJSON | null;
@@ -30,6 +30,16 @@ interface RegionMapProps {
   ndviYearly?: Record<number, number>;
   // Pixel-grid NDVI overlay for the currently-selected region + year.
   hotspotGrid?: GridGeoJSON | null;
+  // Pixel-grid NDVI diff overlay (after - before) for the currently-selected
+  // region. Properties are read only for `diff`; the wider response shape
+  // (NdviDiffResponse) satisfies this structurally without us having to
+  // re-export its full type here.
+  diffGrid?: {
+    features: ReadonlyArray<{
+      geometry: GeoJSON.Polygon;
+      properties: Readonly<{ diff: number }>;
+    }>;
+  } | null;
 }
 
 // Continuous sand → green ramp tuned to the actual annual-mean NDVI span
@@ -52,6 +62,37 @@ function riskToColor(level: number): string {
   return RISK_LEVEL_COLORS[level] ?? "#a1a1aa";
 }
 
+// Diverging ramp for NDVI change-detection.
+//   diff ≤ -0.10 → deep red       (severe loss)
+//   diff =  0    → near-white     (no change)
+//   diff ≥ +0.10 → deep forest    (strong gain)
+// Range tuned to the project's observed 10-year NDVI deltas (~+0.07 mean,
+// peak ±0.13) so the visible contrast spreads across the actual data span.
+function diffToColor(diff: number): string {
+  const clamp = Math.max(-0.10, Math.min(0.10, diff));
+  const t = (clamp + 0.10) / 0.20; // 0 (most loss) → 1 (most gain)
+  const stops: Array<[number, [number, number, number]]> = [
+    [0.0, [178, 24, 43]],   // dark red
+    [0.5, [247, 240, 230]], // near-white sand
+    [1.0, [26, 110, 60]],   // forest green
+  ];
+  // Two-segment lerp.
+  let lo = stops[0];
+  let hi = stops[2];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i][0] && t <= stops[i + 1][0]) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
+    }
+  }
+  const u = (t - lo[0]) / (hi[0] - lo[0]);
+  const r = Math.round(lo[1][0] + (hi[1][0] - lo[1][0]) * u);
+  const g = Math.round(lo[1][1] + (hi[1][1] - lo[1][1]) * u);
+  const b = Math.round(lo[1][2] + (hi[1][2] - lo[1][2]) * u);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 export default function RegionMap({
   regions,
   ndviSummary,
@@ -61,6 +102,7 @@ export default function RegionMap({
   onSelectRegion,
   ndviYearly,
   hotspotGrid,
+  diffGrid,
 }: RegionMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -260,6 +302,7 @@ export default function RegionMap({
 
     const apply = () => {
       const hotspotActive = layerMode === "hotspot" && hotspotGrid != null;
+      const diffActive = layerMode === "diff" && diffGrid != null;
       const gridFc = hotspotActive
         ? {
             type: "FeatureCollection" as const,
@@ -302,6 +345,53 @@ export default function RegionMap({
         });
       }
 
+      // Diff-grid: structurally mirrors hotspot-grid but is its own source
+      // so the two layers can coexist without one wiping the other's data
+      // when the user switches between modes.
+      const diffFc = diffActive
+        ? {
+            type: "FeatureCollection" as const,
+            features: diffGrid!.features.map((f) => ({
+              ...f,
+              properties: {
+                ...f.properties,
+                fillColor: diffToColor(
+                  (f.properties as { diff?: number }).diff ?? 0,
+                ),
+              },
+            })),
+          }
+        : { type: "FeatureCollection" as const, features: [] };
+
+      if (map.getSource("diff-grid")) {
+        (map.getSource("diff-grid") as maplibregl.GeoJSONSource).setData(
+          diffFc as unknown as GeoJSON.FeatureCollection,
+        );
+      } else {
+        map.addSource("diff-grid", {
+          type: "geojson",
+          data: diffFc as unknown as GeoJSON.FeatureCollection,
+        });
+        map.addLayer({
+          id: "diff-fill",
+          type: "fill",
+          source: "diff-grid",
+          paint: {
+            "fill-color": ["get", "fillColor"],
+            "fill-opacity": 0.8,
+          },
+        });
+        map.addLayer({
+          id: "diff-border",
+          type: "line",
+          source: "diff-grid",
+          paint: {
+            "line-color": "rgba(0,0,0,0.08)",
+            "line-width": 0.5,
+          },
+        });
+      }
+
       // Belt-and-suspenders: hide the layers outright when not in hotspot
       // mode. setData with empty features should be enough, but toggling
       // visibility guarantees the pixel grid can't visually linger on top
@@ -318,14 +408,27 @@ export default function RegionMap({
           hotspotActive ? "visible" : "none"
         );
       }
+      if (map.getLayer("diff-fill")) {
+        map.setLayoutProperty(
+          "diff-fill",
+          "visibility",
+          diffActive ? "visible" : "none",
+        );
+        map.setLayoutProperty(
+          "diff-border",
+          "visibility",
+          diffActive ? "visible" : "none",
+        );
+      }
 
-      // Single source of truth for sandy-fill opacity so the two concerns
-      // (dim under hotspot vs. highlight selected region) don't race.
+      // Single source of truth for sandy-fill opacity so the three concerns
+      // (dim under hotspot, dim under diff, highlight selected region) don't
+      // race.
       if (map.getLayer("sandy-fill")) {
         map.setPaintProperty(
           "sandy-fill",
           "fill-opacity",
-          hotspotActive
+          hotspotActive || diffActive
             ? 0.1
             : [
                 "case",
@@ -355,7 +458,7 @@ export default function RegionMap({
     return () => {
       cancelled = true;
     };
-  }, [hotspotGrid, layerMode, selectedRegionId]);
+  }, [hotspotGrid, diffGrid, layerMode, selectedRegionId]);
 
   // Border width still responds independently to selection so the selected
   // outline stays crisp regardless of layer mode.

@@ -41,6 +41,7 @@ import {
   fetchRiskTimeseries,
   fetchNdviGrid,
   fetchNdviGridYears,
+  fetchNdviDiff,
   fetchLandCover,
   fetchNdviForecast,
   RISK_LEVEL_COLORS,
@@ -54,6 +55,7 @@ import {
   type GridGeoJSON,
   type LandCoverYear,
   type ForecastPoint,
+  type NdviDiffResponse,
 } from "@/lib/api";
 
 interface RegionData {
@@ -85,6 +87,10 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [hotspotGrid, setHotspotGrid] = useState<GridGeoJSON | null>(null);
   const [hotspotYears, setHotspotYears] = useState<number[]>([]);
+  // NDVI change-detection layer — fetched lazily when user enters diff mode.
+  // Defaults to (earliest, latest) of the same `hotspotYears` cache so the
+  // mode immediately tells the longest-window restoration story.
+  const [diffGrid, setDiffGrid] = useState<NdviDiffResponse | null>(null);
   // Compare mode replaces the map with a Landsat true-color swipe view.
   const [compareMode, setCompareMode] = useState(false);
   const [compareBeforeYear, setCompareBeforeYear] = useState(2015);
@@ -216,6 +222,27 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [layerMode, selectedId, selectedYear, hotspotYears]);
+
+  // Fetch the NDVI diff (longest available window) when diff mode is active.
+  // No year picker yet — we compute (min cached year, max cached year) so
+  // the layer always shows the strongest signal. Picker can come in a
+  // follow-up commit.
+  useEffect(() => {
+    if (layerMode !== "diff" || selectedId == null) {
+      setDiffGrid(null);
+      return;
+    }
+    if (hotspotYears.length < 2) return;
+    const before = hotspotYears[0];
+    const after = hotspotYears[hotspotYears.length - 1];
+    let cancelled = false;
+    fetchNdviDiff(selectedId, before, after).then((g) => {
+      if (!cancelled) setDiffGrid(g);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [layerMode, selectedId, hotspotYears]);
 
   useEffect(() => {
     async function load() {
@@ -494,6 +521,7 @@ export default function DashboardPage() {
                     : undefined
                 }
                 hotspotGrid={layerMode === "hotspot" ? hotspotGrid : null}
+                diffGrid={layerMode === "diff" ? diffGrid : null}
               />
             )}
             {!compareMode && <LayerToggle layerMode={layerMode} onChange={setLayerMode} />}
@@ -517,6 +545,9 @@ export default function DashboardPage() {
             )}
             {!compareMode && layerMode === "hotspot" && (
               <NdviGradientLegend title="像素 NDVI" />
+            )}
+            {!compareMode && layerMode === "diff" && (
+              <NdviDiffLegend summary={diffGrid?.summary ?? null} />
             )}
             {!compareMode &&
               (layerMode === "ndvi" || layerMode === "hotspot") &&
@@ -886,10 +917,11 @@ function LayerToggle({
     ndvi: "植被覆盖",
     risk: "沙化风险",
     hotspot: "像素热点",
+    diff: "变化检测",
   };
   return (
     <div className="absolute left-3 top-3 flex overflow-hidden rounded-full border border-[var(--line)] bg-white/90 p-0.5 text-[11px] shadow-sm backdrop-blur">
-      {(["ndvi", "risk", "hotspot"] as const).map((mode) => (
+      {(["ndvi", "risk", "hotspot", "diff"] as const).map((mode) => (
         <button
           key={mode}
           onClick={() => onChange(mode)}
@@ -902,6 +934,63 @@ function LayerToggle({
           {labels[mode]}
         </button>
       ))}
+    </div>
+  );
+}
+
+function NdviDiffLegend({ summary }: { summary: NdviDiffResponse["summary"] | null }) {
+  // Diverging strip — red (-0.10) → tan (0) → green (+0.10). Matches
+  // diffToColor() in RegionMap.tsx so what the legend shows is what the map
+  // paints.
+  const stops = [-0.10, -0.05, 0, 0.05, 0.10];
+  const colorAt = (d: number): string => {
+    const clamp = Math.max(-0.10, Math.min(0.10, d));
+    const t = (clamp + 0.10) / 0.20;
+    if (t <= 0.5) {
+      const u = t / 0.5;
+      const r = Math.round(178 + (247 - 178) * u);
+      const g = Math.round(24 + (240 - 24) * u);
+      const b = Math.round(43 + (230 - 43) * u);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    const u = (t - 0.5) / 0.5;
+    const r = Math.round(247 + (26 - 247) * u);
+    const g = Math.round(240 + (110 - 240) * u);
+    const b = Math.round(230 + (60 - 230) * u);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+  return (
+    <div className="absolute bottom-3 left-3 rounded-md border border-[var(--line)] bg-white/90 px-3 py-2 text-[10px] shadow-sm backdrop-blur">
+      <div className="mb-1 font-semibold tracking-wide text-[var(--ink)]">
+        NDVI 变化{summary ? ` · ${summary.before_year}→${summary.after_year}` : ""}
+      </div>
+      <div
+        className="h-2 w-40 rounded-full"
+        style={{
+          background: `linear-gradient(to right, ${stops.map(colorAt).join(", ")})`,
+        }}
+      />
+      <div className="num mt-1 flex w-40 justify-between text-[var(--ink-soft)]">
+        <span>-0.10</span>
+        <span>0</span>
+        <span>+0.10</span>
+      </div>
+      {summary && (
+        <div className="mt-2 border-t border-[var(--line)] pt-1.5 text-[10px] text-[var(--ink-muted)]">
+          <div>
+            均值 <span className="num font-medium text-[var(--ink)]">
+              {summary.mean_diff >= 0 ? "+" : ""}
+              {summary.mean_diff.toFixed(3)}
+            </span>
+          </div>
+          <div className="num">
+            <span style={{ color: "rgb(26,110,60)" }}>↑ {summary.gain_cells}</span>
+            <span className="mx-1 text-[var(--ink-soft)]">·</span>
+            <span style={{ color: "rgb(178,24,43)" }}>↓ {summary.loss_cells}</span>
+            <span className="ml-1 text-[var(--ink-soft)]">/ {summary.n_cells} cells</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
