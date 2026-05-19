@@ -72,3 +72,77 @@
   must_include_keywords: ["NDVI", "0.3"]
   min_length: 100
   expects_live_metrics: true
+
+# ---- Added 2026-05-19 to grow corpus coverage ----
+# Keyword language matches the source doc's language: Chinese keywords for
+# papers_cn / gov docs, English for papers_en, mixed for general questions.
+
+- id: 11
+  question: "三北防护林工程的经济效益主要体现在哪些方面？"
+  must_include_source_patterns:
+    - "economic-benefits"
+  must_include_keywords: ["经济", "效益"]
+  min_length: 100
+
+- id: 12
+  question: "干旱事件对三北地区植被 NPP 有什么影响？"
+  must_include_source_patterns:
+    - "drought_landcover_npp"
+  must_include_keywords: ["NPP", "drought"]
+  min_length: 100
+
+- id: 13
+  question: "阿拉善地区的人工造林对土壤水分平衡有什么长期影响？"
+  must_include_source_patterns:
+    - "alxa"
+  must_include_keywords: ["soil", "water"]
+  min_length: 100
+
+- id: 14
+  question: "温带稀树草原的物种丰富度主要由什么环境因子驱动？"
+  must_include_source_patterns:
+    - "savanna_species_richness"
+  must_include_keywords: ["species", "richness"]
+  min_length: 100
+
+- id: 15
+  question: "中国西北造林对碳吸收和降水有什么反馈作用？"
+  must_include_source_patterns:
+    - "nw_china_carbon"
+  must_include_keywords: ["carbon", "precipitation"]
+  min_length: 100
+
+- id: 16
+  question: "Populus euphratica 在塔里木盆地是怎样获取水分的？"
+  must_include_source_patterns:
+    - "populus_euphratica"
+  must_include_keywords: ["Populus", "water"]
+  min_length: 100
+
+- id: 17
+  question: "沙地造林应该优先选择哪些乡土先锋树种？"
+  # Broad question — no single guaranteed source, just expects retrieval
+  # to surface tree-species literature with relevant keywords.
+  must_include_keywords: ["树种", "造林"]
+  min_length: 100
+
+- id: 18
+  question: "黄土高原 Caragana 造林对长期干旱有什么响应？"
+  must_include_source_patterns:
+    - "caragana_drought_loess_plateau"
+  must_include_keywords: ["Caragana", "drought"]
+  min_length: 100
+
+- id: 19
+  question: "中国北方沙地恢复中，风蚀和水蚀的相对重要性如何？"
+  # Spans wind_erosion + decreasing_soil_erosion — accept either; the
+  # eval CLI will report which one ranked first via first_hit_category.
+  must_include_keywords: ["风蚀", "soil"]
+  min_length: 120
+
+- id: 20
+  question: "三北防护林科学绿化对树种选择有哪些新的指导？"
+  must_include_source_patterns:
+    - "scientific-greening"
+  must_include_keywords: ["树种", "绿化"]
+  min_length: 100
