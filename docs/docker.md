@@ -763,18 +763,42 @@ docker compose build --no-cache frontend && docker compose up -d
 ```bash
 cd /opt/sandbelt/SandbeltOS
 
-# 导入沙地矢量边界
-docker compose exec backend python scripts/seed_region_polygons.py
-docker compose exec backend python scripts/seed_accurate_sandy.py
+# 1. 导入沙地矢量边界（秒级）
+docker compose exec backend python -m scripts.seed_region_polygons
+docker compose exec backend python -m scripts.seed_accurate_sandy
+```
 
-# 从 GEE 拉遥感数据（需要 GEE 账号可用）
-docker compose exec backend python scripts/fetch_real_gee.py
+**关键：从 GEE 拉数据前，必须先用服务账号登录 GEE。** 仓库里 `fetch_*` 脚本默认走个人账号，容器里没有个人 credentials,所以要显式用 service account：
 
-# 算风险指标
-docker compose exec backend python scripts/compute_risk.py
+```bash
+docker compose exec backend python -c "
+import ee
+creds = ee.ServiceAccountCredentials(
+    'sandbelt-gee@ee-yueliu19921209.iam.gserviceaccount.com',
+    '/app/secrets/gee-key.json')
+ee.Initialize(creds, project='ee-yueliu19921209')
+print('GEE service account OK')
+"
+```
 
-# RAG：把 data/rag_docs/ 里的 PDF 切片入 Chroma
-#（先把 PDF 拷进 /opt/sandbelt/repo/data/rag_docs/）
+打印 `OK` 之后就可以跑 fetch:
+
+```bash
+# 2. 从 GEE 拉遥感数据（慢，30-60 分钟，建议后台跑）
+docker compose exec -d backend bash -c \
+    "python -m scripts.fetch_all_gee > /tmp/gee.log 2>&1"
+
+# 看进度
+docker compose exec backend tail -f /tmp/gee.log
+
+# 3. ERA5 气象（可选，有 CDS Key 才跑）
+docker compose exec -d backend bash -c \
+    "python -m scripts.fetch_era5 > /tmp/era5.log 2>&1"
+
+# 4. 等 GEE + ERA5 都齐了再算风险
+docker compose exec backend python -m scripts.compute_risk
+
+# 5. RAG：把 PDF 拷进 data/rag_docs/ 后切片入 Chroma
 docker compose exec backend python -m rag.ingest
 ```
 
