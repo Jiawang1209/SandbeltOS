@@ -1,8 +1,17 @@
 # Phase 5 之后 — 后续路线图
 
 > 创建日期：2026-05-12
+> 最近更新：2026-05-19
 > 上游：Phase 5（预测 + 情景）已完成,见 [`2026-05-12-phase5-prediction-plan.md`](2026-05-12-phase5-prediction-plan.md)
 > 基线 commit：Phase 5 收尾 + bbox_json hotfix 已合入主线
+>
+> **状态速览(2026-05-19):**
+> - 1️⃣ 端到端验证:1.1 deferred · 1.2 ✅ · 1.3 ✅ · 1.4 deferred(user-side)· 1.5 ✅
+> - 2️⃣ 真实 GEE 数据:2.1-2.5 ✅ · 2.6 ✅ · 2.7 ⏳ · 2.8 ⏳ · UI charts(LST/SMAP)✅
+> - 3️⃣ Phase 3/4 收尾:⏳
+> - 4️⃣ CI workflow:✅ `07f99f8`
+> - 5️⃣ RAG 质量评估:✅ `f3954de` + `74c9925`
+> - 6️⃣ 文档收敛:in-progress
 
 ---
 
@@ -37,13 +46,13 @@
 
 **具体步骤:**
 
-| # | 动作 | 验收 |
-|---|------|------|
-| 1.1 | 在干净的 conda env 或 docker 重新走一遍 README 「快速开始」 | 五步全过,不需要任何"补丁"动作 |
-| 1.2 | 跑完整 pytest suite(单元 + 集成),记每个失败/skip 的原因 | 输出测试报告,记入 `docs/test-status.md` |
-| 1.3 | 浏览器手测 5 个核心动作 | 见下方清单 |
-| 1.4 | 录 2-3 分钟视频(QuickTime / OBS) | 上传到项目本地 `docs/demos/` 或外部链接 |
-| 1.5 | 修录制中暴露的所有 bug,录第二遍 | 视频里没明显卡顿/报错 |
+| # | 动作 | 验收 | 状态 |
+|---|------|------|------|
+| 1.1 | 在干净的 conda env 或 docker 重新走一遍 README 「快速开始」 | 五步全过,不需要任何"补丁"动作 | ⏳ deferred(用户偏好复用现有 env) |
+| 1.2 | 跑完整 pytest suite(单元 + 集成),记每个失败/skip 的原因 | 输出测试报告,记入 `docs/test-status.md` | ✅ 118/118 green |
+| 1.3 | 浏览器手测 5 个核心动作 | 见下方清单 | ✅ chrome-devtools MCP 实测通过 |
+| 1.4 | 录 2-3 分钟视频(QuickTime / OBS) | 上传到项目本地 `docs/demos/` 或外部链接 | ⏳ user-side,SOP at `docs/demos/RECORDING_SOP.md` |
+| 1.5 | 修录制中暴露的所有 bug,录第二遍 | 视频里没明显卡顿/报错 | ✅ bug fixes 合入主线 |
 
 **视频里要展示的 5 个核心动作:**
 
@@ -74,16 +83,17 @@
 
 **具体步骤:**
 
-| # | 动作 | 工具/脚本 | 验收 |
-|---|------|---------|------|
-| 2.1 | GEE 拉 MODIS NDVI/EVI(科尔沁 + 浑善达克,2015-2025) | `scripts/fetch_real_gee.py` 或 `fetch_all_gee.py` | `SELECT count(*) FROM eco_indicators WHERE source = 'MODIS'` ≥ 200 |
-| 2.2 | GEE 拉 MOD11A2 LST(地表温度) | `fetch_all_gee.py` 或自己加一支 | 表里 `indicator = 'lst'` 行数 > 0 |
-| 2.3 | GEE 拉 SMAP 土壤水分 | `fetch_all_gee.py` 或新支 | 表里 `indicator = 'soil_moisture'` 行数 > 0 |
-| 2.4 | CDS 拉 ERA5(降水/风速/温度,2015-2025) | `scripts/fetch_era5_resume.py`(断点续传版,大文件友好) | `SELECT count(*) FROM weather_data` ≥ 1000 |
-| 2.5 | 真实数据进来后**重跑** `compute_risk.py` 让风险评估表用真值 | `scripts/compute_risk.py` | `desertification_risk` 表有新行,旧合成行可选清除 |
-| 2.6 | 真实数据上重跑 Prophet 一次,看输出合不合理 | `curl /api/v1/prediction/ndvi-forecast?region_id=1&horizon=12` | yhat 在 [0.15, 0.45] 这个三北区合理 NDVI 区间 |
-| 2.7 | 真实降水/风速进来后**重新校准** `scenario.py` 经验常数 | 手动调 `SM_DEFICIT_COEF` / `EFFECTIVE_PRECIP_FRACTION` 让 5 年情景对杨树/柠条的差异化仍合理 | 重跑 `pytest tests/test_scenario.py` 仍 12/12 过 |
-| 2.8 | **摘掉前端"演示数据"角标** | 编辑 `dashboard/page.tsx` 移除 `<DemoDataBadge>` 引用,或加条件:`if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true')` 才显示 | 默认显示无水印,可通过 env 重新打开作为退路 |
+| # | 动作 | 工具/脚本 | 验收 | 状态 |
+|---|------|---------|------|------|
+| 2.1 | GEE 拉 MODIS NDVI/EVI(科尔沁 + 浑善达克,2015-2025) | `scripts/fetch_real_gee.py` 或 `fetch_all_gee.py` | `SELECT count(*) FROM eco_indicators WHERE source = 'MODIS'` ≥ 200 | ✅ 603 rows(2000-2026) |
+| 2.2 | GEE 拉 MOD11A2 LST(地表温度) | `fetch_all_gee.py` 或自己加一支 | 表里 `indicator = 'lst'` 行数 > 0 | ✅ 1203 rows |
+| 2.3 | GEE 拉 SMAP 土壤水分 | `fetch_all_gee.py` 或新支 | 表里 `indicator = 'soil_moisture'` 行数 > 0 | ✅ 124 rows |
+| 2.4 | CDS 拉 ERA5(降水/风速/温度,2015-2025) | `scripts/fetch_era5_resume.py`(断点续传版,大文件友好) | `SELECT count(*) FROM weather_data` ≥ 1000 | ✅ 1827 × 2 regions |
+| 2.5 | 真实数据进来后**重跑** `compute_risk.py` 让风险评估表用真值 | `scripts/compute_risk.py` | `desertification_risk` 表有新行,旧合成行可选清除 | ✅ done |
+| 2.6 | 真实数据上重跑 Prophet 一次,看输出合不合理 | `curl /api/v1/prediction/ndvi-forecast?region_id=1&horizon=12` | yhat 在 [0.15, 0.45] 这个三北区合理 NDVI 区间 | ✅ yhat in range |
+| 2.7 | 真实降水/风速进来后**重新校准** `scenario.py` 经验常数 | 手动调 `SM_DEFICIT_COEF` / `EFFECTIVE_PRECIP_FRACTION` 让 5 年情景对杨树/柠条的差异化仍合理 | 重跑 `pytest tests/test_scenario.py` 仍 12/12 过 | ⏳ pending |
+| 2.8 | **摘掉前端"演示数据"角标** | 编辑 `dashboard/page.tsx` 移除 `<DemoDataBadge>` 引用,或加条件:`if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true')` 才显示 | 默认显示无水印,可通过 env 重新打开作为退路 | ⏳ pending |
+| 2.bonus | **Dashboard 加 LST/SMAP 图表 + KPI 卡** | `frontend/src/components/LstSmapChart.tsx` + dashboard KPI 行扩 3→5 | 单区视图同时展示 NDVI/LST/SMAP | ✅ `36eff27` + `b838b23` |
 
 **潜在坑:**
 
@@ -108,25 +118,27 @@ PLAN.md 里这两个标 🟡,但"完成标志"里有些 [ ] 没勾。两个出�
 
 **为什么要做:** 演示时被问"Phase 3 是黄色什么意思",回答"我们用 50 个 commit 完成了 80%,剩下的 20% 拆到这里"比说"我也不记得了"专业一百倍。
 
-### 4️⃣ CI workflow(0.5 天)
+### 4️⃣ CI workflow(0.5 天)— ✅ `07f99f8`
 
-加 `.github/workflows/ci.yml`,触发 pull_request:
-- `cd backend && pytest -m unit`(只跑单测,不需要 DB)
-- `cd frontend && npx tsc --noEmit && npx eslint`
-- 在 PR 上展示 status check
+加 `.github/workflows/ci.yml`,触发 push to main + pull_request:
+- **frontend job**: `npx tsc --noEmit` + `npx eslint` (no DB, ~1 min)
+- **backend job**: TimescaleDB-HA service container → `init.sql` → `scripts.seed_data` → `pytest -m "not slow"` (~5-8 min)
 
-**收益:** 挡住未来的 schema drift / 类型不匹配 / lint 回归。47 个 commit 没 CI 是技术债。
+Slow tests(bge-m3 / bge-reranker / Prophet,要 ~2.5GB 模型下载)有意跳过,后面可加 scheduled / label-triggered 配套 workflow。
 
-### 5️⃣ RAG 真实质量评估(1-2 天)
+### 5️⃣ RAG 真实质量评估 — ✅ `f3954de` + `74c9925`
 
-`tests/golden_qa.yaml` + `test_golden.py` 已经有了,但没人跑过真实的回答质量。
+新增离线评测 CLI:`backend/scripts/eval_rag.py`,生成 markdown 报告。
 
-**动作:**
-- 起 backend + chroma → 跑 `pytest tests/test_golden.py -v --tb=short`
-- 看输出,5 类典型问题(现状/风险/情景/决策/知识)各打分(1-5,人工)
-- 如果总分 < 3.5,迭代:`chunk_size` 600 → 1000、`top_k` 5 → 7、`prompt_templates.py` 加 few-shot 示例
+**已落地:**
+- golden_qa.yaml 从 10 题扩到 **20 题**,12 份 PDF 全部至少被 1 题命中
+- CLI 输出每题 recall@1/@3/@5、MRR、关键词覆盖率,聚合 + 按 `Chunk.category` 分类 first-hit breakdown
+- `--no-rerank` flag 用来对比 dense-only baseline,验证 bge-reranker 的增益
+- 跑法:`docker compose exec backend python -m scripts.eval_rag --out /app/eval_report.md`
 
-**收益:** 你 RAG 链路号称"决策支持",真要被追问"你的 LLM 真给得出有用建议吗",得有数。
+**尚未做:**
+- LLM 答案质量人工打分(需要等 LLM endpoint 稳定 + 真实问答跑通后再做)
+- chunk_size / top_k / prompt few-shot 迭代调优(等评测出第一份基线后再说)
 
 ### 6️⃣ 文档收敛(0.5-1 天)
 

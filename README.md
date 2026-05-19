@@ -4,6 +4,8 @@
 >
 > 面向三北防护林工程区的全栈生态智能平台：实时遥感数据采集、生态指标计算、沙化风险评估、RAG 智慧问答、GIS 可视化。
 
+[![CI](https://github.com/Jiawang1209/SandbeltOS/actions/workflows/ci.yml/badge.svg)](https://github.com/Jiawang1209/SandbeltOS/actions/workflows/ci.yml)
+
 ---
 
 ## ✨ 核心能力
@@ -96,7 +98,7 @@
 | 容器化 | **Docker** · **Docker Compose** | 一键全栈编排 |
 | 反向代理 | **Nginx** + **Certbot**（生产） | 域名 / HTTPS / SSE 兼容 |
 | 服务进程 | **systemd**（备选方案） | 非容器部署 |
-| CI/CD | GitHub | 源码托管 |
+| CI/CD | **GitHub Actions** | `frontend tsc+eslint` 与 `backend pytest -m "not slow"` 自动门 |
 | 密钥托管 | `secrets/` 目录（gitignore） | GEE service account |
 
 ---
@@ -396,6 +398,11 @@ bash deploy.sh
 |---|---|
 | [PLAN.md](PLAN.md) | 分阶段开发计划、任务清单、验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构图、数据库 Schema、代码模板 |
+| [docs/superpowers/plans/2026-05-12-post-phase5-roadmap.md](docs/superpowers/plans/2026-05-12-post-phase5-roadmap.md) | Phase 5 之后的后续路线图（当前状态实时维护） |
+| [docs/test-status.md](docs/test-status.md) | 测试与端到端验证的事实记录（含历次回归取证） |
+| [.github/workflows/ci.yml](.github/workflows/ci.yml) | CI workflow：frontend tsc+eslint / backend pytest with TimescaleDB |
+| [backend/scripts/eval_rag.py](backend/scripts/eval_rag.py) | RAG 检索质量离线评测 — recall@K / MRR / kw 覆盖 |
+| [backend/tests/golden_qa.yaml](backend/tests/golden_qa.yaml) | RAG 评测用的 20 题 golden set（覆盖全 PDF 语料） |
 | [QUICKSTART_CN.md](QUICKSTART_CN.md) | 部署快速开始（3 步上线） |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 部署方案对比（Docker / systemd / Vercel） |
 | [docs/docker.md](docs/docker.md) | Docker 部署完全手册（含 Nginx + HTTPS） |

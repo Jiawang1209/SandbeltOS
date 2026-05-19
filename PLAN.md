@@ -250,7 +250,8 @@ psql -U sandbelt -d sandbelt_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 - [x] 问答页面能流式显示回答 ✅ 2026-05-18（SSE 打字机效果 + 6 个预设快捷问题分 3 组）
 - [x] 回答中包含实时数据引用 + 文献引用 ✅ 2026-05-18（右侧 5 条 PDF 引用 + page + score；左下实时指标面板 NDVI/FVC/风险/风速/土壤）
-- [ ] 5 类测试问题回答质量通过人工审核（**仍缺**：当前 `.env` 指向的 uni-api `qwen3:235b` 已下线，需切到可用 LLM endpoint 才能跑人工质量评估）
+- [x] 检索质量离线评测 ✅ 2026-05-19（`scripts/eval_rag.py` + golden 20 题：recall@K / MRR / kw-coverage / per-category；commit `f3954de` + `74c9925`）
+- [ ] 5 类测试问题**LLM 答案质量**通过人工审核（LLM endpoint 已切到 `deepseek-v3.2` 可用；仍缺人工通读打分一轮）
 
 > 完成度盘点详见 [`docs/test-status.md`](docs/test-status.md) §三。
 

@@ -610,14 +610,40 @@ def assess_desertification_risk(
 
 ## 8. 预测服务
 
-> **实际落地文件（Phase 5 已完成,2026-05-12）：**
-> - `backend/app/services/prediction.py` — Prophet NDVI 预测,带 Redis 缓存
-> - `backend/app/services/scenario.py` — 造林情景模拟
-> - `backend/app/api/v1/prediction.py` — `GET /ndvi-forecast` · `POST /scenario` · `GET /scenario-defaults`
-> - 风险评估调用 `app.services.indicators.assess_risk`（**注意**: 不是下方代码示例里的旧名 `assess_desertification_risk`）
->
-> 下方的代码模板保留作为初版设计参考,常数表已被 `scenario.py` 内部的 `SPECIES_WATER_USE_MM` 取代。
-> 完整设计见 [`docs/superpowers/plans/2026-05-12-phase5-prediction-plan.md`](superpowers/plans/2026-05-12-phase5-prediction-plan.md)。
+Phase 5 已完成(2026-05-12)。本节只给数据流和落地文件指针,具体函数签名 / 公式 / 经验常数请直接读源码——曾经在此处的代码模板已过时(LSTM 思路最终砍掉,Prophet 路径常数被 `SPECIES_WATER_USE_MM` 取代,函数名也变了),保留只会徒增维护成本。
+
+**实际落地文件:**
+
+| 文件 | 职责 |
+|------|------|
+| `backend/app/services/prediction.py` | Prophet NDVI 预测(16-day step),Redis 缓存 30 min |
+| `backend/app/services/scenario.py` | 造林情景模拟(6 种树种 × 密度 × 年限) |
+| `backend/app/api/v1/prediction.py` | `GET /ndvi-forecast` · `POST /scenario` · `GET /scenario-defaults` |
+| `backend/app/services/indicators.py` | `assess_risk`(**不**叫 `assess_desertification_risk`) |
+
+**数据流:**
+
+```
+eco_indicators (NDVI 历史)
+        ↓
+   prediction.predict_ndvi() — Prophet fit + forecast,Redis 缓存
+        ↓
+   API /ndvi-forecast → 前端 NdviChart 虚线 + 置信带
+
+regions.area_km2 + 最近 ERA5 + 最近 NDVI/FVC
+        ↓
+   scenario.simulate() — 树种水耗 vs 降水补给逐年迭代
+        ↓
+   每年 {fvc, soil_moisture, water_deficit_mm, risk_level, risk_score, warning}
+        ↓
+   API /scenario → 前端 ScenarioPanel 多曲线对比
+```
+
+**设计文档:** [`docs/superpowers/plans/2026-05-12-phase5-prediction-plan.md`](superpowers/plans/2026-05-12-phase5-prediction-plan.md)
+**测试:** `pytest backend/tests/test_prediction.py backend/tests/test_scenario.py`
+
+<details>
+<summary>历史代码模板(已过时,折叠保留)</summary>
 
 > 对应文件（设计稿,非实际路径）：`backend/app/services/prediction_service.py`
 
@@ -759,6 +785,8 @@ def _generate_recommendation(results: list, species: str, precip: float) -> str:
     else:
         return "LOW RISK: Current plan is viable. Continue monitoring NDVI and soil moisture."
 ```
+
+</details>
 
 ---
 
