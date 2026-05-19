@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     cors_origins: str = "http://localhost:3000"
 
+    # Observability — all optional. SENTRY_DSN empty = SDK no-op.
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.0
+    # Global default rate limit (slowapi). Set to empty to disable.
+    api_rate_limit: str = "100/minute"
+
     # GEE
     gee_project: str = "ee-yueliu19921209"
     gee_service_account: str = ""

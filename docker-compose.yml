@@ -47,6 +47,34 @@ services:
       - ./data/redis:/data
 
   # -----------------------------------------------------------------------
+  # pgBouncer (optional connection pooler)
+  #
+  # Gated by the `scale` profile — `docker compose up -d` skips it by
+  # default; bring it up with `docker compose --profile scale up -d`
+  # when you want transaction-level pooling (e.g. many uvicorn workers
+  # behind nginx, or serverless callers). Then point the backend at
+  # pgbouncer:6432 instead of postgres:5432 via DATABASE_URL.
+  # -----------------------------------------------------------------------
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: sandbelt-pgbouncer
+    restart: unless-stopped
+    profiles: ["scale"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-sandbelt}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置强密码}
+      DB_NAME: ${POSTGRES_DB:-sandbelt_db}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "200"
+      DEFAULT_POOL_SIZE: "20"
+      AUTH_TYPE: scram-sha-256
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # -----------------------------------------------------------------------
   # Backend · FastAPI
   # -----------------------------------------------------------------------
   backend:
