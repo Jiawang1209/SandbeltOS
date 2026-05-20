@@ -65,6 +65,35 @@ GRAFANA_ADMIN_PASSWORD=admin    # 上线前务必改强密码
 
 ---
 
+## Forecast cache pre-warming
+
+Prophet NDVI fit is slow (~5-10s/region on real data). First dashboard visit
+of the day pays the cost otherwise — script + boot hook keep cold-start off
+the critical path.
+
+**Two ways to warm:**
+
+1. **Boot hook** — `.env`:
+   ```env
+   CACHE_WARM_ON_BOOT=true
+   ```
+   Backend startup spawns a non-blocking background task; uvicorn does not wait.
+
+2. **Cron / Prefect / manual**:
+   ```bash
+   docker compose exec backend python -m scripts.warm_forecast_cache
+   ```
+   Flags:
+   - `--region N` warm one region instead of all
+   - `--horizon N` override default 12
+   - `--dry-run` list what would be warmed
+   - `-v` debug logs
+
+Cache TTL is 30 min but the key includes today's date, so a daily 06:00 cron
+hits Redis before the first user shows up. Idempotent — re-runs are cheap.
+
+---
+
 ## Sentry
 
 Sentry SDK 也在同一次 observability commit 里，但跟 Prometheus 解耦——只要 `SENTRY_DSN` 是空，SDK 不会初始化。要打开：在 [sentry.io](https://sentry.io) 建项目 → 拿到 DSN → 写到 `.env`：

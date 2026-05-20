@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # Global default rate limit (slowapi). Set to empty to disable.
     api_rate_limit: str = "100/minute"
 
+    # When true, FastAPI spawns a non-blocking background task at startup
+    # that calls scripts.warm_forecast_cache.warm_all() so the first
+    # dashboard visit doesn't pay Prophet's cold-fit cost. Default off
+    # to keep tests + dev boots fast.
+    cache_warm_on_boot: bool = False
+
     # GEE
     gee_project: str = "ee-yueliu19921209"
     gee_service_account: str = ""

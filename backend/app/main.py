@@ -1,10 +1,32 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import basemap, chat, ecological, gis, grid, prediction
 from app.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001 — FastAPI passes app here
+    # Pre-warm the Prophet forecast cache so the first dashboard load
+    # doesn't pay cold-fit cost. Fire-and-forget — never block uvicorn
+    # boot on this. Failures are logged but do not crash startup.
+    if settings.cache_warm_on_boot:
+        async def _bg_warm() -> None:
+            try:
+                from scripts.warm_forecast_cache import warm_all
+                await warm_all()
+            except Exception as exc:  # noqa: BLE001 — warming is best-effort
+                logger.warning("forecast cache warm-on-boot failed: %s", exc)
+
+        asyncio.create_task(_bg_warm())
+    yield
 
 # ---------- Sentry ----------
 # DSN absent → SDK never initializes, zero overhead. Traces sample rate
@@ -23,6 +45,7 @@ app = FastAPI(
     title="SandbeltOS API",
     version="0.1.0",
     description="三北防护林智慧生态决策支持系统",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
