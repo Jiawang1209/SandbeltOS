@@ -407,6 +407,7 @@ bash deploy.sh
 | [QUICKSTART_CN.md](QUICKSTART_CN.md) | 部署快速开始（3 步上线） |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 部署方案对比（Docker / systemd / Vercel） |
 | [docs/docker.md](docs/docker.md) | Docker 部署完全手册（含 Nginx + HTTPS） |
+| [docs/observability.md](docs/observability.md) | Prometheus + Grafana 看板（`docker compose --profile obs up -d`） |
 | [deploy.sh](deploy.sh) | 一键部署脚本（装 Docker + 校验 .env + 启动） |
 | [scripts/deploy/export_local_data.sh](scripts/deploy/export_local_data.sh) | 本地数据导出（PostgreSQL + ChromaDB + PDF） |
 | [scripts/deploy/import_to_server.sh](scripts/deploy/import_to_server.sh) | 服务器端数据导入 |

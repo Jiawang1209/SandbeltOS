@@ -14,6 +14,7 @@
 | **正式上线 / 域名 + HTTPS** | 同上 + Nginx 反代 + Let's Encrypt | [`docker.md`](docker.md) §9.2 + 附录 A |
 | **从零搭一台新服务器** | 装 Docker + 拉代码 + 灌数据(含 GEE service account 步骤) | [`docker.md`](docker.md) §3 + 附录 B |
 | **本机已有数据,搬上服务器** | 上面 + `pg_dump` + `chroma_store` tar 迁移 | [`docker.md`](docker.md) §8 |
+| **看监控指标 / 错误上报** | Prometheus + Grafana 看板(opt-in profile) | [`observability.md`](observability.md) |
 
 ---
 

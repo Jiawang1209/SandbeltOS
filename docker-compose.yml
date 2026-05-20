@@ -109,6 +109,51 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
 
   # -----------------------------------------------------------------------
+  # Prometheus + Grafana (optional observability stack)
+  #
+  # Gated by the `obs` profile — `docker compose up -d` skips them by
+  # default. Bring up with `docker compose --profile obs up -d` to scrape
+  # backend:8000/metrics and visualize the bundled "SandbeltOS API"
+  # dashboard at http://localhost:${GRAFANA_PORT:-3001} (admin/admin).
+  # -----------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: sandbelt-prometheus
+    restart: unless-stopped
+    profiles: ["obs"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana-oss:11.2.0
+    container_name: sandbelt-grafana
+    restart: unless-stopped
+    profiles: ["obs"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./data/grafana:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+
+  # -----------------------------------------------------------------------
   # Frontend · Next.js
   # NEXT_PUBLIC_API_URL 必须在 build 时注入，见 docs/docker.md §"关键注意事项"
   # -----------------------------------------------------------------------
