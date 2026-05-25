@@ -1,0 +1,34 @@
+# Golden eval questions grounded in the 2026-05 corpus expansion (+1318 papers).
+# New papers have opaque numeric filenames, so these assert keyword coverage
+# (not source patterns): "does the expanded corpus surface relevant text for
+# the dominant themes?". Run with:
+#   python -m scripts.eval_rag --golden tests/golden_qa_corpus_expansion.yaml
+- id: 21
+  question: "浑善达克沙地治理的主要措施有哪些？"
+  must_include_keywords: ["浑善达克", "治理"]
+  min_length: 100
+
+- id: 22
+  question: "科尔沁沙地植被恢复对区域气温有什么影响？"
+  must_include_keywords: ["科尔沁", "植被"]
+  min_length: 100
+
+- id: 23
+  question: "毛乌素沙地樟子松人工林对水分条件如何响应？"
+  must_include_keywords: ["毛乌素", "樟子松"]
+  min_length: 100
+
+- id: 24
+  question: "气温与降水变化如何影响沙地荒漠化进程？"
+  must_include_keywords: ["降水", "荒漠化"]
+  min_length: 100
+
+- id: 25
+  question: "沙地治理常用的固沙措施有哪些？"
+  must_include_keywords: ["固沙"]
+  min_length: 100
+
+- id: 26
+  question: "风蚀与输沙在沙地退化中起什么作用？"
+  must_include_keywords: ["风蚀", "输沙"]
+  min_length: 100
