@@ -76,7 +76,11 @@ class Settings(BaseSettings):
 
     rag_embedder: str = "BAAI/bge-m3"
     rag_reranker: str = "BAAI/bge-reranker-v2-m3"
-    rag_top_k_retrieve: int = 20
+    # Dense-recall width fed into the reranker. Bumped 20 -> 100 after the
+    # 2026-05 corpus grew to ~28k chunks: at N=20 the reranker only saw a thin
+    # slice and recall@5 on the golden set fell to 0.38; N=100 recovers it to
+    # 0.56 (N=200 only adds +0.06 for 2x rerank cost).
+    rag_top_k_retrieve: int = 100
     rag_top_k_rerank: int = 5
     rag_chunk_size: int = 800
     rag_chunk_overlap: int = 100
