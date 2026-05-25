@@ -13,16 +13,19 @@ import asyncio
 import json
 from typing import AsyncGenerator
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.config import get_settings
+from app.limiter import limiter
 from app.services import query_router
 from rag import live_metrics, retriever
 from rag.llm_client import stream_completion
 from rag.prompt_templates import build_prompt, build_sources_meta
 
 router = APIRouter()
+_settings = get_settings()
 
 
 class ChatRequest(BaseModel):
@@ -35,7 +38,8 @@ def _sse(event: str, data: str) -> str:
 
 
 @router.post("/chat")
-async def chat(req: ChatRequest) -> StreamingResponse:
+@limiter.limit(_settings.chat_rate_limit or _settings.api_rate_limit)
+async def chat(request: Request, req: ChatRequest) -> StreamingResponse:  # noqa: ARG001 — request needed by slowapi
     ctx = query_router.parse(req.question)
     region = req.region_hint or (ctx.regions[0] if ctx.regions else None)
 

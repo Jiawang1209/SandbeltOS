@@ -56,22 +56,18 @@ app.add_middleware(
 )
 
 # ---------- Rate limiting (slowapi) ----------
-# Global default limit applied via middleware so every route is covered
-# without per-route decorators. Empty `api_rate_limit` disables — useful
-# for tests where you don't want 429s on rapid `pytest -n auto` runs.
-if settings.api_rate_limit:
-    from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore[import-not-found]
-    from slowapi.errors import RateLimitExceeded  # type: ignore[import-not-found]
-    from slowapi.middleware import SlowAPIMiddleware  # type: ignore[import-not-found]
-    from slowapi.util import get_remote_address  # type: ignore[import-not-found]
+# Shared Limiter lives in app.limiter so per-route decorators in the
+# API modules can import it without a circular dep. Enforcement is
+# off when API_RATE_LIMIT is empty (set on limiter.enabled at import).
+from slowapi import _rate_limit_exceeded_handler  # type: ignore[import-not-found]
+from slowapi.errors import RateLimitExceeded  # type: ignore[import-not-found]
+from slowapi.middleware import SlowAPIMiddleware  # type: ignore[import-not-found]
 
-    limiter = Limiter(
-        key_func=get_remote_address,
-        default_limits=[settings.api_rate_limit],
-    )
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    app.add_middleware(SlowAPIMiddleware)
+from app.limiter import limiter
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # ---------- Prometheus metrics ----------
 # Mounts GET /metrics with default HTTP request histograms + counters.

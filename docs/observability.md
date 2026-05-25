@@ -65,6 +65,27 @@ GRAFANA_ADMIN_PASSWORD=admin    # 上线前务必改强密码
 
 ---
 
+## Rate limiting
+
+slowapi enforces both a global default and stricter per-route limits on
+the two expensive endpoints. All limits are per-IP, in-memory (lost on
+container restart — for clustered deploys, switch to the Redis storage
+backend at `app/limiter.py`).
+
+| Endpoint | Default | Reason |
+|---|---|---|
+| (everything else) | `API_RATE_LIMIT=100/minute` | Generous; protects against accidental burst loops |
+| `POST /api/v1/chat` | `CHAT_RATE_LIMIT=20/minute` | Each call burns LLM tokens — real money |
+| `POST /api/v1/prediction/scenario` | `SCENARIO_RATE_LIMIT=30/minute` | CPU-bound multi-year simulation |
+
+To disable all limits (e.g. for `pytest -n auto`), set `API_RATE_LIMIT=`
+empty — the limiter object stays but `enabled=False` short-circuits every
+decorator including the per-route ones.
+
+429 response body matches slowapi's default handler: `{"error":"Rate limit exceeded: <rule>"}`.
+
+---
+
 ## Forecast cache pre-warming
 
 Prophet NDVI fit is slow (~5-10s/region on real data). First dashboard visit

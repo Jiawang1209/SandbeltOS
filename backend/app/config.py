@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 0.0
     # Global default rate limit (slowapi). Set to empty to disable.
     api_rate_limit: str = "100/minute"
+    # Per-route limits — stricter than the global because these endpoints
+    # cost real money (LLM tokens) or CPU (Prophet, scenario simulation).
+    # Empty string falls back to the global default.
+    chat_rate_limit: str = "20/minute"
+    scenario_rate_limit: str = "30/minute"
 
     # When true, FastAPI spawns a non-blocking background task at startup
     # that calls scripts.warm_forecast_cache.warm_all() so the first

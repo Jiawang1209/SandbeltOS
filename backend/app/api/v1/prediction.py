@@ -18,11 +18,13 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
+from app.limiter import limiter
 from app.services import ecological as eco_svc
 from app.services import prediction as pred_svc
 from app.services import scenario as scenario_svc
@@ -34,6 +36,7 @@ from app.services.scenario import (
 )
 
 router = APIRouter()
+_settings = get_settings()
 
 
 # ---------- regional baselines (used when client omits scenario knobs) ----------
@@ -222,7 +225,9 @@ async def get_scenario_defaults(
 
 
 @router.post("/scenario", response_model=ScenarioResponse)
+@limiter.limit(_settings.scenario_rate_limit or _settings.api_rate_limit)
 async def post_scenario(
+    request: Request,  # noqa: ARG001 — required by slowapi key_func
     req: ScenarioRequest,
     db: AsyncSession = Depends(get_db),
 ) -> ScenarioResponse:
