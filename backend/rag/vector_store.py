@@ -79,7 +79,9 @@ class VectorStore:
         for doc, meta, dist in zip(docs, metas, dists):
             raw_hints = (meta.get("region_hint") or "") if meta else ""
             hints = [h for h in raw_hints.split(",") if h]
-            if region_filter and region_filter not in hints:
+            # Chunks with no region hint are general literature: keep them for
+            # any region. Only drop chunks tagged to a *different* region.
+            if region_filter and hints and region_filter not in hints:
                 continue
             chunk = Chunk(
                 text=doc,
